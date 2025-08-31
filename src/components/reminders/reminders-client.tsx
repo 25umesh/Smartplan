@@ -9,7 +9,7 @@ import { format, parseISO } from 'date-fns';
 import { Bell, CheckCircle2, Circle } from 'lucide-react';
 import { ReminderDialog } from '../tasks/reminder-dialog';
 import { Button } from '../ui/button';
-import Image from 'next/image';
+import { Badge } from '@/components/ui/badge';
 
 interface RemindersClientProps {
   tasks: Task[];
