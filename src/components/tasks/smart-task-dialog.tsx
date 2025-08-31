@@ -19,7 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Bell, CalendarIcon, Loader2, PlusCircle, Sparkles, Trash2 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
-import { format, addMinutes, isBefore, sub, parseISO, differenceInMinutes, set, formatISO } from "date-fns";
+import { format, addMinutes, isBefore, sub, parseISO, differenceInMinutes, set } from "date-fns";
 import { detectDetailsAction, addTask, suggestRemindersAction } from "@/lib/actions";
 import { useToast } from "@/hooks/use-toast";
 import type { Reminder } from "@/lib/types";
@@ -126,16 +126,13 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
   const getFinalDueDate = () => {
     if (!dueDate) return undefined;
 
-    let finalDueDate = dueDate; // Start with the selected date object
+    let finalDueDate = dueDate;
 
     if (includeTime) {
-        const [hours, minutes] = time.split(':').map(Number);
-        // Construct a new Date object from a string that specifies the exact local time.
-        const dateString = `${format(finalDueDate, 'yyyy-MM-dd')}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
-        finalDueDate = new Date(dateString);
+      const [hours, minutes] = time.split(':').map(Number);
+      finalDueDate = set(finalDueDate, { hours, minutes, seconds: 0, milliseconds: 0 });
     } else {
-        // If no time is included, just use the date part (time will be midnight local)
-        finalDueDate = new Date(format(finalDueDate, 'yyyy-MM-dd'));
+        finalDueDate = set(finalDueDate, { hours: 0, minutes: 0, seconds: 0, milliseconds: 0 });
     }
     
     return finalDueDate;
