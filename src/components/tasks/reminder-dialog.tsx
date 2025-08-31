@@ -49,6 +49,7 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
         const result = await suggestRemindersAction({
             taskDescription: task.title + (task.description ? `\n${task.description}` : ''),
             deadline: task.dueDate || undefined,
+            priority: task.priority || undefined,
         });
         if (result.error) {
             toast({
@@ -112,10 +113,9 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
   }
 
   const handleCheckboxChange = (time: string, checked: boolean) => {
-    setSelectedTimes(prev => {
-      const newSelectedTimes = checked ? [...prev, time] : prev.filter(t => t !== time);
-      return newSelectedTimes.slice(0, 6); // Enforce max 6 reminders
-    });
+    setSelectedTimes(prev => 
+      checked ? [...prev, time] : prev.filter(t => t !== time)
+    );
   }
 
   const fiveMinutesFromNow = useMemo(() => addMinutes(new Date(), 5), []);
@@ -168,7 +168,6 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
                         id={time} 
                         checked={selectedTimes.includes(time)}
                         onCheckedChange={(checked) => handleCheckboxChange(time, !!checked)}
-                        disabled={selectedTimes.length >= 6 && !selectedTimes.includes(time)}
                     />
                     <Label htmlFor={time} className="cursor-pointer">{format(new Date(time), 'PPP p')}</Label>
                   </div>

@@ -172,6 +172,7 @@ export async function generateScheduleAction(prompt: string) {
 const SuggestRemindersSchema = z.object({
   taskDescription: z.string(),
   deadline: z.string().optional(),
+  priority: z.enum(['low', 'medium', 'high']).optional(),
 });
 
 export async function suggestRemindersAction(input: z.infer<typeof SuggestRemindersSchema>) {
