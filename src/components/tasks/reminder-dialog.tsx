@@ -39,6 +39,7 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [customTime, setCustomTime] = useState<Date | undefined>();
   const [message, setMessage] = useState('Your friendly reminder!');
+  const [notificationEmail, setNotificationEmail] = useState<string | null>(null);
   const { toast } = useToast();
 
   const handleFetchSuggestions = async () => {
@@ -76,6 +77,8 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
   
   useEffect(() => {
       if(isOpen) {
+          const savedEmail = localStorage.getItem('notificationEmail');
+          setNotificationEmail(savedEmail);
           handleFetchSuggestions();
       } else {
           // Reset state on close
@@ -101,7 +104,7 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
         await addReminder(task.id, {
             remindAt: new Date(remindAt).toISOString(),
             message,
-        });
+        }, notificationEmail);
         toast({ title: 'Reminder Set', description: 'Your reminder has been saved and a confirmation email has been sent.' });
         setIsOpen(false);
     } catch(e) {
@@ -124,6 +127,14 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
+          {!notificationEmail && (
+            <Alert variant="destructive">
+                <AlertDescription>
+                    No notification email is set. Please set one on the <a href="/settings" className="font-bold underline">Settings</a> page to receive reminders.
+                </AlertDescription>
+            </Alert>
+          )}
+
           {isLoadingSuggestions && (
             <div className="flex items-center justify-center p-8">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -195,7 +206,7 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setIsOpen(false)}>Cancel</Button>
-          <Button onClick={handleSave} disabled={isSaving || isLoadingSuggestions}>
+          <Button onClick={handleSave} disabled={isSaving || isLoadingSuggestions || !notificationEmail}>
             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Save Reminder
           </Button>

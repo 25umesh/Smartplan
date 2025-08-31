@@ -1,39 +1,42 @@
 
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 
-// NOTE: This is a placeholder for a real email sending service.
-// You would replace this with your actual email sending logic.
-// For local development, this will just log to the console.
-// You can sign up for a free Resend account and get an API key
-// to test this for real.
+const emailUser = process.env.EMAIL_USER;
+const emailPass = process.env.EMAIL_PASS;
+const toEmail = process.env.TO_EMAIL;
 
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-const fromEmail = process.env.FROM_EMAIL || 'onboarding@resend.dev';
-const toEmail = process.env.TO_EMAIL || 'delivered@resend.dev';
-
-export async function sendEmail({ subject, html }: { subject: string; html: string; }) {
-  if (resend) {
-    try {
-      const response = await resend.emails.send({
-        from: fromEmail,
-        to: toEmail,
-        subject: subject,
-        html: html,
-      });
-      console.log('Email sent:', response);
-      return response;
-    } catch (error) {
-      console.error('Error sending email:', error);
-      throw new Error('Failed to send email.');
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: emailUser,
+        pass: emailPass,
     }
-  } else {
-    console.log('--- SENDING EMAIL ---');
-    console.log('TO:', toEmail);
-    console.log('FROM:', fromEmail);
+});
+
+export async function sendEmail({ to, subject, html }: { to: string; subject: string; html: string; }) {
+  if (!emailUser || !emailPass) {
+    console.log('--- SENDING EMAIL (SIMULATED) ---');
+    console.log('TO:', to);
     console.log('SUBJECT:', subject);
     console.log('BODY (HTML):', html);
     console.log('--- EMAIL SENT (SIMULATED) ---');
-    // Simulate a successful response for local development
+    console.log('Email sending is not configured. Please set EMAIL_USER and EMAIL_PASS in your .env file.');
     return { id: `simulated_${Date.now()}` };
+  }
+
+  const mailOptions = {
+    from: `"SmartPlan" <${emailUser}>`,
+    to: to,
+    subject: subject,
+    html: html,
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Email sent:', info.messageId);
+    return info;
+  } catch (error) {
+    console.error('Error sending email:', error);
+    throw new Error('Failed to send email.');
   }
 }

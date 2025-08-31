@@ -23,9 +23,8 @@ const sendEmailFlow = ai.defineFlow(
     outputSchema: z.any(),
   },
   async (input) => {
-    // In a real application, you might use another LLM call here
-    // to format the email body, but for now, we'll just send it directly.
     return await sendEmail({
+      to: input.to,
       subject: input.subject,
       html: input.body,
     });

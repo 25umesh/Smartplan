@@ -43,7 +43,7 @@ export async function getTasks(): Promise<Task[]> {
   return tasks.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }
 
-export async function addTask(taskData: Omit<Task, 'id' | 'createdAt' | 'completed' | 'reminders'>) {
+export async function addTask(taskData: Omit<Task, 'id' | 'createdAt' | 'completed' | 'reminders'>, toEmail: string | null) {
   const tasks = await readTasks();
   const newTask: Task = {
     id: crypto.randomUUID(),
@@ -55,14 +55,18 @@ export async function addTask(taskData: Omit<Task, 'id' | 'createdAt' | 'complet
   tasks.unshift(newTask);
   await writeTasks(tasks);
 
-  // Send confirmation email
-  await sendEmailAction({
-    subject: `Task Created: ${newTask.title}`,
-    body: `<h1>Task Created</h1><p>Your new task, "${newTask.title}", has been successfully created.</p>`,
-  });
+  // Send confirmation email if an email address is provided
+  if (toEmail) {
+      await sendEmailAction({
+        to: toEmail,
+        subject: `Task Created: ${newTask.title}`,
+        body: `<h1>Task Created</h1><p>Your new task, "${newTask.title}", has been successfully created.</p>`,
+      });
+  }
 
   revalidatePath('/');
   revalidatePath('/calendar');
+  revalidatePath('/reminders');
   return newTask;
 }
 
@@ -76,6 +80,7 @@ export async function updateTask(taskId: string, updates: Partial<Task>) {
   await writeTasks(tasks);
   revalidatePath('/');
   revalidatePath('/calendar');
+  revalidatePath('/reminders');
   return tasks[taskIndex];
 }
 
@@ -85,6 +90,7 @@ export async function deleteTask(taskId: string) {
   await writeTasks(tasks);
   revalidatePath('/');
   revalidatePath('/calendar');
+  revalidatePath('/reminders');
 }
 
 export async function toggleTaskCompletion(taskId: string) {
@@ -95,10 +101,11 @@ export async function toggleTaskCompletion(taskId: string) {
     await writeTasks(tasks);
     revalidatePath('/');
     revalidatePath('/calendar');
+    revalidatePath('/reminders');
   }
 }
 
-export async function addReminder(taskId: string, reminderData: Omit<Reminder, 'id' | 'sent'>) {
+export async function addReminder(taskId: string, reminderData: Omit<Reminder, 'id' | 'sent'>, toEmail: string | null) {
     const tasks = await readTasks();
     const taskIndex = tasks.findIndex(t => t.id === taskId);
     if (taskIndex === -1) {
@@ -112,14 +119,18 @@ export async function addReminder(taskId: string, reminderData: Omit<Reminder, '
     tasks[taskIndex].reminders.push(newReminder);
     await writeTasks(tasks);
 
-    // Send reminder confirmation email
-    await sendEmailAction({
-        subject: `Reminder Set for "${tasks[taskIndex].title}"`,
-        body: `<h1>Reminder Set</h1><p>A reminder for your task, "<strong>${tasks[taskIndex].title}</strong>", has been set for <strong>${new Date(newReminder.remindAt).toLocaleString()}</strong>.</p><p>Message: ${newReminder.message}</p>`,
-    });
+    // Send reminder confirmation email if an email address is provided
+    if (toEmail) {
+        await sendEmailAction({
+            to: toEmail,
+            subject: `Reminder Set for "${tasks[taskIndex].title}"`,
+            body: `<h1>Reminder Set</h1><p>A reminder for your task, "<strong>${tasks[taskIndex].title}</strong>", has been set for <strong>${new Date(newReminder.remindAt).toLocaleString()}</strong>.</p><p>Message: ${newReminder.message}</p>`,
+        });
+    }
 
     revalidatePath('/');
     revalidatePath('/calendar');
+    revalidatePath('/reminders');
     return newReminder;
 }
 

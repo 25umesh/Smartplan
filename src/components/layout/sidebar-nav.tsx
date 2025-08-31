@@ -3,8 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BrainCircuit, Calendar, LayoutDashboard, Sparkles, Settings } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { BrainCircuit, Calendar, LayoutDashboard, Sparkles, Settings, Bell } from 'lucide-react';
 import {
   SidebarContent,
   SidebarFooter,
@@ -12,7 +11,6 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  SidebarSeparator,
 } from '@/components/ui/sidebar';
 import { ScheduleGeneratorDialog } from '../tasks/schedule-generator-dialog';
 import { ThemeToggle } from '../theme-toggle';
@@ -20,6 +18,7 @@ import { ThemeToggle } from '../theme-toggle';
 const links = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/calendar', label: 'Calendar', icon: Calendar },
+  { href: '/reminders', label: 'Reminders', icon: Bell },
 ];
 
 const bottomLinks = [
@@ -86,7 +85,7 @@ export function SidebarNav() {
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter className="flex items-center justify-end p-2 group-data-[collapsible=icon]:justify-center">
-        <ThemeToggle />
+         <ThemeToggle />
       </SidebarFooter>
     </>
   );

@@ -19,6 +19,7 @@ export interface Task {
 }
 
 export const SendEmailInputSchema = z.object({
+  to: z.string().describe('The recipient of the email.'),
   subject: z.string().describe('The subject of the email.'),
   body: z.string().describe('The HTML body of the email.'),
 });

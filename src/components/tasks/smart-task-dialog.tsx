@@ -24,6 +24,7 @@ import { detectDetailsAction, addTask } from "@/lib/actions";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import type { Task } from "@/lib/types";
+import { Alert, AlertDescription } from "../ui/alert";
 
 interface SmartTaskDialogProps {
   children: ReactNode;
@@ -40,9 +41,13 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState<Date | undefined>();
   const [priority, setPriority] = useState<Task['priority'] | undefined>();
+  const [notificationEmail, setNotificationEmail] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isOpen) {
+    if (isOpen) {
+        const savedEmail = localStorage.getItem('notificationEmail');
+        setNotificationEmail(savedEmail);
+    } else {
         // Reset state when dialog closes
         setRawText("");
         setIsDetecting(false);
@@ -86,7 +91,7 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
             description,
             dueDate: dueDate ? dueDate.toISOString() : null,
             priority: priority || null,
-        });
+        }, notificationEmail);
         toast({ title: "Task Added", description: `"${title}" has been added.` });
         setIsOpen(false);
     } catch(e) {
@@ -125,6 +130,13 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
               <span className="ml-2 hidden sm:inline">Detect Details</span>
             </Button>
           </div>
+          {!notificationEmail && (
+            <Alert variant="destructive">
+                <AlertDescription>
+                    No notification email is set. Please set one on the <a href="/settings" className="font-bold underline">Settings</a> page to receive task confirmations and reminders.
+                </AlertDescription>
+            </Alert>
+          )}
 
           <div className="my-4 h-px bg-border" />
           
