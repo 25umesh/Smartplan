@@ -126,13 +126,15 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
   const getFinalDueDate = () => {
     if (!dueDate) return undefined;
 
-    let finalDueDate = dueDate;
-    if(includeTime) {
-      const [hours, minutes] = time.split(':').map(Number);
-      finalDueDate = set(finalDueDate, { hours, minutes, seconds: 0, milliseconds: 0 });
-    } else {
-      finalDueDate = set(finalDueDate, { hours: 0, minutes: 0, seconds: 0, milliseconds: 0 });
+    let finalDueDate = set(dueDate, { hours: 0, minutes: 0, seconds: 0, milliseconds: 0 });
+
+    if (includeTime) {
+        const [hours, minutes] = time.split(':').map(Number);
+        // Create a new Date object from a string to avoid timezone issues.
+        const dateString = `${format(finalDueDate, 'yyyy-MM-dd')}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
+        finalDueDate = new Date(dateString);
     }
+    
     return finalDueDate;
   }
   
@@ -236,7 +238,7 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
 
         const totalMinutes = differenceInMinutes(dueDate, remindAt);
         if (totalMinutes < 1) return null;
-
+        
         const days = Math.floor(totalMinutes / (60 * 24));
         const hours = Math.floor((totalMinutes % (60*24)) / 60);
         const minutes = totalMinutes % 60;
@@ -464,5 +466,3 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
     </Dialog>
   );
 }
-
-    
