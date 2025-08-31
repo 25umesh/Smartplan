@@ -19,7 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Bell, CalendarIcon, Loader2, PlusCircle, Sparkles, Trash2 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
-import { format, addMinutes, isBefore, sub, parseISO, differenceInDays, differenceInHours, differenceInMinutes } from "date-fns";
+import { format, addMinutes, isBefore, sub, parseISO, differenceInMinutes } from "date-fns";
 import { detectDetailsAction, addTask, suggestRemindersAction } from "@/lib/actions";
 import { useToast } from "@/hooks/use-toast";
 import type { Reminder } from "@/lib/types";
@@ -229,14 +229,20 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
       const dueDate = finalDueDate;
       const suggestedRelativeReminders = result.data.suggestedReminderTimes.map(timeStr => {
         const remindAt = parseISO(timeStr);
-        const days = differenceInDays(dueDate, remindAt);
-        const hours = differenceInHours(dueDate, remindAt) % 24;
-        const minutes = differenceInMinutes(dueDate, remindAt) % 60;
+        if (isBefore(remindAt, new Date()) || isBefore(dueDate, remindAt)) return null;
+
+        const totalMinutes = differenceInMinutes(dueDate, remindAt);
+        if (totalMinutes < 1) return null;
+
+        const days = Math.floor(totalMinutes / (60 * 24));
+        const hours = Math.floor((totalMinutes % (60*24)) / 60);
+        const minutes = totalMinutes % 60;
         
         if (days > 0) return { id: crypto.randomUUID(), value: days, unit: 'days' as ReminderUnit };
         if (hours > 0) return { id: crypto.randomUUID(), value: hours, unit: 'hours' as ReminderUnit };
-        return { id: crypto.randomUUID(), value: Math.max(5, minutes), unit: 'minutes' as ReminderUnit };
-      }).filter(r => r !== null);
+        if (minutes > 0) return { id: crypto.randomUUID(), value: minutes, unit: 'minutes' as ReminderUnit };
+        return null;
+      }).filter((r): r is RelativeReminder => r !== null);
 
       const uniqueSuggestions = Array.from(new Map(suggestedRelativeReminders.map(item => [`${item.value}-${item.unit}`, item])).values());
       const combined = [...reminders, ...uniqueSuggestions];
