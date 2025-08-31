@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, type ReactNode, useEffect } from 'react';
+import { useState, type ReactNode, useEffect, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -16,13 +16,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Bell, CalendarIcon, Loader2, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
-import { suggestRemindersAction, addReminder } from '@/lib/actions';
+import { format, addMinutes, isBefore } from 'date-fns';
+import { suggestRemindersAction, addReminders } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import type { Task } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Calendar } from '../ui/calendar';
-import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
+import { Checkbox } from '../ui/checkbox';
 import { Alert, AlertDescription } from '../ui/alert';
 
 interface ReminderDialogProps {
@@ -36,7 +36,7 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [suggestedTimes, setSuggestedTimes] = useState<string[]>([]);
   const [reasoning, setReasoning] = useState('');
-  const [selectedTime, setSelectedTime] = useState<string>('');
+  const [selectedTimes, setSelectedTimes] = useState<string[]>([]);
   const [customTime, setCustomTime] = useState<Date | undefined>();
   const [message, setMessage] = useState('Your friendly reminder!');
   const [notificationEmail, setNotificationEmail] = useState<string | null>(null);
@@ -60,9 +60,6 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
         } else if (result.data) {
             setSuggestedTimes(result.data.suggestedReminderTimes);
             setReasoning(result.data.reasoning);
-            if (result.data.suggestedReminderTimes.length > 0) {
-                setSelectedTime(result.data.suggestedReminderTimes[0]);
-            }
         }
     } catch(e) {
         toast({
@@ -86,7 +83,7 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
           setIsSaving(false);
           setSuggestedTimes([]);
           setReasoning('');
-          setSelectedTime('');
+          setSelectedTimes([]);
           setCustomTime(undefined);
           setMessage('Your friendly reminder!');
       }
@@ -94,25 +91,41 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
   }, [isOpen]);
 
   const handleSave = async () => {
-    const remindAt = selectedTime === 'custom' ? customTime : selectedTime;
-    if (!remindAt) {
-      toast({ title: 'Please select a reminder time.', variant: 'destructive' });
+    let remindersToSet = selectedTimes.map(time => ({ remindAt: time, message }));
+    if (customTime) {
+      remindersToSet.push({ remindAt: customTime.toISOString(), message });
+    }
+
+    if (remindersToSet.length === 0) {
+      toast({ title: 'Please select at least one reminder time.', variant: 'destructive' });
       return;
     }
+    
     setIsSaving(true);
     try {
-        await addReminder(task.id, {
-            remindAt: new Date(remindAt).toISOString(),
-            message,
-        }, notificationEmail);
-        toast({ title: 'Reminder Set', description: 'Your reminder has been saved and a confirmation email has been sent.' });
+        await addReminders(task.id, remindersToSet, notificationEmail);
+        toast({ title: 'Reminders Set', description: `Your reminders for "${task.title}" have been saved.` });
         setIsOpen(false);
     } catch(e) {
-        toast({ title: 'Failed to set reminder', variant: 'destructive' });
+        toast({ title: 'Failed to set reminders', variant: 'destructive' });
     }
     setIsSaving(false);
   }
 
+  const handleCheckboxChange = (time: string, checked: boolean) => {
+    setSelectedTimes(prev => {
+      const newSelectedTimes = checked ? [...prev, time] : prev.filter(t => t !== time);
+      return newSelectedTimes.slice(0, 6); // Enforce max 6 reminders
+    });
+  }
+
+  const fiveMinutesFromNow = useMemo(() => addMinutes(new Date(), 5), []);
+
+  const validSuggestedTimes = useMemo(() => {
+      return suggestedTimes.filter(time => !isBefore(new Date(time), fiveMinutesFromNow));
+  }, [suggestedTimes, fiveMinutesFromNow]);
+  
+  const isCustomTimeValid = useMemo(() => customTime && !isBefore(customTime, fiveMinutesFromNow), [customTime, fiveMinutesFromNow]);
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -120,13 +133,13 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Bell className="h-6 w-6" /> Set Reminder for &quot;{task.title}&quot;
+            <Bell className="h-6 w-6" /> Set Reminders for &quot;{task.title}&quot;
           </DialogTitle>
           <DialogDescription>
-            Our AI can suggest optimal times, or you can set your own.
+            AI suggestions are for times in the future. You can select up to 6. Reminders cannot be set within 5 minutes of the current time.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 py-4">
+        <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto pr-2">
           {!notificationEmail && (
             <Alert variant="destructive">
                 <AlertDescription>
@@ -141,7 +154,7 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
             </div>
           )}
 
-          {!isLoadingSuggestions && suggestedTimes.length > 0 && (
+          {!isLoadingSuggestions && validSuggestedTimes.length > 0 && (
             <div className="space-y-4">
               <Alert>
                   <Sparkles className="h-4 w-4" />
@@ -149,55 +162,62 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
                   {reasoning}
                 </AlertDescription>
               </Alert>
-              <RadioGroup value={selectedTime} onValueChange={setSelectedTime}>
-                {suggestedTimes.map((time) => (
+              <div className="space-y-2">
+                {validSuggestedTimes.map((time) => (
                   <div key={time} className="flex items-center space-x-2">
-                    <RadioGroupItem value={time} id={time} />
-                    <Label htmlFor={time}>{format(new Date(time), 'PPP p')}</Label>
+                    <Checkbox 
+                        id={time} 
+                        checked={selectedTimes.includes(time)}
+                        onCheckedChange={(checked) => handleCheckboxChange(time, !!checked)}
+                        disabled={selectedTimes.length >= 6 && !selectedTimes.includes(time)}
+                    />
+                    <Label htmlFor={time} className="cursor-pointer">{format(new Date(time), 'PPP p')}</Label>
                   </div>
                 ))}
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="custom" id="custom" />
-                  <Label htmlFor="custom">Custom time</Label>
-                </div>
-              </RadioGroup>
+              </div>
             </div>
           )}
+          
+          <div className="space-y-2">
+              <Label>Custom time</Label>
+               <Popover>
+                <PopoverTrigger asChild>
+                    <Button
+                    variant={'outline'}
+                    className={cn(
+                        'w-full justify-start text-left font-normal',
+                        !customTime && 'text-muted-foreground'
+                    )}
+                    >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {customTime ? format(customTime, 'PPP p') : <span>Pick a date and time</span>}
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                    <Calendar
+                    mode="single"
+                    selected={customTime}
+                    onSelect={setCustomTime}
+                    initialFocus
+                    disabled={(date) => isBefore(date, new Date())}
+                    />
+                    <div className="p-3 border-t border-border">
+                        <Input type="time" onChange={e => {
+                            const [hours, minutes] = e.target.value.split(':').map(Number);
+                            setCustomTime(prev => {
+                                const newDate = prev ? new Date(prev) : new Date();
+                                newDate.setHours(hours, minutes);
+                                return newDate;
+                            });
+                        }}/>
+                    </div>
+                </PopoverContent>
+                </Popover>
+                {customTime && !isCustomTimeValid && (
+                    <p className="text-sm text-destructive">Custom time must be at least 5 minutes in the future.</p>
+                )}
+          </div>
 
-          {selectedTime === 'custom' && (
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant={'outline'}
-                  className={cn(
-                    'w-full justify-start text-left font-normal',
-                    !customTime && 'text-muted-foreground'
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {customTime ? format(customTime, 'PPP p') : <span>Pick a date and time</span>}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="single"
-                  selected={customTime}
-                  onSelect={setCustomTime}
-                  initialFocus
-                />
-                <div className="p-3 border-t border-border">
-                    <Input type="time" onChange={e => {
-                        const [hours, minutes] = e.target.value.split(':').map(Number);
-                        setCustomTime(prev => {
-                            const newDate = prev ? new Date(prev) : new Date();
-                            newDate.setHours(hours, minutes);
-                            return newDate;
-                        });
-                    }}/>
-                </div>
-              </PopoverContent>
-            </Popover>
-          )}
 
           <div className="grid gap-1.5">
             <Label htmlFor="message">Reminder Message</Label>
@@ -206,9 +226,9 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setIsOpen(false)}>Cancel</Button>
-          <Button onClick={handleSave} disabled={isSaving || isLoadingSuggestions || !notificationEmail}>
+          <Button onClick={handleSave} disabled={isSaving || isLoadingSuggestions || !notificationEmail || (selectedTimes.length === 0 && !isCustomTimeValid)}>
             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Save Reminder
+            Save Reminders
           </Button>
         </DialogFooter>
       </DialogContent>

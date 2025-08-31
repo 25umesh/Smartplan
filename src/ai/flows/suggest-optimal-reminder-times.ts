@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview AI agent that suggests optimal times for setting reminders based on tasks.
@@ -51,7 +52,7 @@ const prompt = ai.definePrompt({
   output: {schema: SuggestOptimalReminderTimesOutputSchema},
   prompt: `You are a personal assistant AI that suggests optimal reminder times for tasks.
 
-  Given the following task description and deadline (if any), suggest at least three optimal reminder times in ISO format.
+  Given the following task description and deadline (if any), suggest exactly six optimal reminder times in ISO format.
   Explain your reasoning for suggesting these times, considering the task description and deadline.
 
   Task description: {{{taskDescription}}}

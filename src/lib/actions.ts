@@ -10,6 +10,7 @@ import { generateScheduleFromPrompt } from '@/ai/flows/generate-schedule-from-pr
 import { suggestOptimalReminderTimes } from '@/ai/flows/suggest-optimal-reminder-times';
 import { sendEmailAction } from '@/ai/flows/send-email-flow';
 import { z } from 'zod';
+import { format } from 'date-fns';
 
 const tasksFilePath = path.join(process.cwd(), 'data', 'tasks.json');
 
@@ -105,33 +106,39 @@ export async function toggleTaskCompletion(taskId: string) {
   }
 }
 
-export async function addReminder(taskId: string, reminderData: Omit<Reminder, 'id' | 'sent'>, toEmail: string | null) {
+export async function addReminders(taskId: string, remindersData: Omit<Reminder, 'id' | 'sent'>[], toEmail: string | null) {
     const tasks = await readTasks();
     const taskIndex = tasks.findIndex(t => t.id === taskId);
     if (taskIndex === -1) {
         throw new Error('Task not found');
     }
-    const newReminder: Reminder = {
+
+    const newReminders: Reminder[] = remindersData.map(reminderData => ({
         id: crypto.randomUUID(),
         sent: false,
         ...reminderData,
-    };
-    tasks[taskIndex].reminders.push(newReminder);
+    }));
+
+    tasks[taskIndex].reminders.push(...newReminders);
     await writeTasks(tasks);
 
     // Send reminder confirmation email if an email address is provided
-    if (toEmail) {
+    if (toEmail && newReminders.length > 0) {
+        const reminderListHtml = newReminders
+            .map(r => `<li>${format(new Date(r.remindAt), 'PPP p')} - <em>${r.message}</em></li>`)
+            .join('');
+        
         await sendEmailAction({
             to: toEmail,
-            subject: `Reminder Set for "${tasks[taskIndex].title}"`,
-            body: `<h1>Reminder Set</h1><p>A reminder for your task, "<strong>${tasks[taskIndex].title}</strong>", has been set for <strong>${new Date(newReminder.remindAt).toLocaleString()}</strong>.</p><p>Message: ${newReminder.message}</p>`,
+            subject: `Reminders Set for "${tasks[taskIndex].title}"`,
+            body: `<h1>Reminders Set</h1><p>The following reminders for your task, "<strong>${tasks[taskIndex].title}</strong>", have been set:</p><ul>${reminderListHtml}</ul>`,
         });
     }
 
     revalidatePath('/');
     revalidatePath('/calendar');
     revalidatePath('/reminders');
-    return newReminder;
+    return newReminders;
 }
 
 
