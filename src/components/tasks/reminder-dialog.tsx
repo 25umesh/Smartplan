@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Bell, Loader2, PlusCircle, Sparkles, Trash2 } from 'lucide-react';
-import { addMinutes, isBefore, parseISO, sub, differenceInMinutes, differenceInHours, differenceInDays } from 'date-fns';
+import { addMinutes, isBefore, parseISO, sub, differenceInMinutes } from 'date-fns';
 import { addReminders, suggestRemindersAction } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import type { Task } from '@/lib/types';
@@ -103,8 +103,8 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
         const hours = Math.floor((totalMinutes % (60*24)) / 60);
         const minutes = totalMinutes % 60;
         
-        if (days > 0) return { id: crypto.randomUUID(), value: days, unit: 'days' as ReminderUnit };
-        if (hours > 0) return { id: crypto.randomUUID(), value: hours, unit: 'hours' as ReminderUnit };
+        if (days > 0 && minutes === 0 && hours === 0) return { id: crypto.randomUUID(), value: days, unit: 'days' as ReminderUnit };
+        if (hours > 0 && minutes === 0) return { id: crypto.randomUUID(), value: hours, unit: 'hours' as ReminderUnit };
         if (minutes > 0) return { id: crypto.randomUUID(), value: minutes, unit: 'minutes' as ReminderUnit };
         return null;
       }).filter((r): r is RelativeReminder => r !== null);

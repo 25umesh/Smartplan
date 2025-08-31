@@ -19,7 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Bell, CalendarIcon, Loader2, PlusCircle, Sparkles, Trash2 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
-import { format, addMinutes, isBefore, sub, parseISO, differenceInMinutes } from "date-fns";
+import { format, addMinutes, isBefore, sub, parseISO, differenceInMinutes, set } from "date-fns";
 import { detectDetailsAction, addTask, suggestRemindersAction } from "@/lib/actions";
 import { useToast } from "@/hooks/use-toast";
 import type { Reminder } from "@/lib/types";
@@ -107,11 +107,14 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
       setTitle(result.data.taskName || "");
       setDescription(result.data.description || "");
       if (result.data.deadline) {
-          const date = new Date(result.data.deadline);
+          // AI returns ISO string in UTC, parseISO handles it correctly.
+          const date = parseISO(result.data.deadline);
           if (!isNaN(date.getTime())) {
             setDueDate(date);
+            // Check if time is significant (not midnight)
             if (date.getUTCHours() !== 0 || date.getUTCMinutes() !== 0) {
               setIncludeTime(true);
+              // Format time according to local timezone for display
               setTime(format(date, "HH:mm"));
             }
           }
@@ -126,9 +129,9 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
     let finalDueDate = new Date(dueDate);
     if(includeTime) {
       const [hours, minutes] = time.split(':').map(Number);
-      finalDueDate.setHours(hours, minutes, 0, 0);
+      finalDueDate = set(finalDueDate, { hours, minutes, seconds: 0, milliseconds: 0 });
     } else {
-      finalDueDate.setHours(0,0,0,0);
+      finalDueDate = set(finalDueDate, { hours: 0, minutes: 0, seconds: 0, milliseconds: 0 });
     }
     return finalDueDate;
   }
@@ -238,8 +241,8 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
         const hours = Math.floor((totalMinutes % (60*24)) / 60);
         const minutes = totalMinutes % 60;
         
-        if (days > 0) return { id: crypto.randomUUID(), value: days, unit: 'days' as ReminderUnit };
-        if (hours > 0) return { id: crypto.randomUUID(), value: hours, unit: 'hours' as ReminderUnit };
+        if (days > 0 && minutes === 0 && hours === 0) return { id: crypto.randomUUID(), value: days, unit: 'days' as ReminderUnit };
+        if (hours > 0 && minutes === 0) return { id: crypto.randomUUID(), value: hours, unit: 'hours' as ReminderUnit };
         if (minutes > 0) return { id: crypto.randomUUID(), value: minutes, unit: 'minutes' as ReminderUnit };
         return null;
       }).filter((r): r is RelativeReminder => r !== null);
