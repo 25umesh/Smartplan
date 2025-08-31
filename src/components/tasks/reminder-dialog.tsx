@@ -14,14 +14,11 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Bell, CalendarIcon, Loader2, Sparkles } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Bell, Loader2, Sparkles } from 'lucide-react';
 import { format, addMinutes, isBefore, parseISO } from 'date-fns';
 import { suggestRemindersAction, addReminders } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import type { Task } from '@/lib/types';
-import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
-import { Calendar } from '../ui/calendar';
 import { Checkbox } from '../ui/checkbox';
 import { Alert, AlertDescription } from '../ui/alert';
 
@@ -37,8 +34,6 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
   const [suggestedTimes, setSuggestedTimes] = useState<string[]>([]);
   const [reasoning, setReasoning] = useState('');
   const [selectedTimes, setSelectedTimes] = useState<string[]>([]);
-  const [customDate, setCustomDate] = useState<Date | undefined>();
-  const [customTimeValue, setCustomTimeValue] = useState<string>('');
   const [message, setMessage] = useState('Your friendly reminder!');
   const [notificationEmail, setNotificationEmail] = useState<string | null>(null);
   const { toast } = useToast();
@@ -85,27 +80,13 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
           setSuggestedTimes([]);
           setReasoning('');
           setSelectedTimes([]);
-          setCustomDate(undefined);
-          setCustomTimeValue('');
           setMessage('Your friendly reminder!');
       }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
-  const customReminderDateTime = useMemo(() => {
-    if (!customDate || !customTimeValue) return null;
-    const [hours, minutes] = customTimeValue.split(':').map(Number);
-    const newDate = new Date(customDate);
-    newDate.setHours(hours, minutes, 0, 0);
-    return newDate;
-  }, [customDate, customTimeValue]);
-
-
   const handleSave = async () => {
     let remindersToSet = selectedTimes.map(time => ({ remindAt: time, message }));
-    if (customReminderDateTime && isCustomTimeValid) {
-      remindersToSet.push({ remindAt: customReminderDateTime.toISOString(), message });
-    }
 
     if (remindersToSet.length === 0) {
       toast({ title: 'Please select at least one reminder time.', variant: 'destructive' });
@@ -124,9 +105,14 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
   }
 
   const handleCheckboxChange = (time: string, checked: boolean) => {
-    setSelectedTimes(prev => 
-      checked ? [...prev, time] : prev.filter(t => t !== time)
-    );
+    setSelectedTimes(prev => {
+        const newSelectedTimes = checked ? [...prev, time] : prev.filter(t => t !== time);
+        if (newSelectedTimes.length > 6) {
+            toast({ title: 'You can select up to 6 reminders.', variant: 'destructive' });
+            return prev;
+        }
+        return newSelectedTimes;
+    });
   }
 
   const fiveMinutesFromNow = useMemo(() => addMinutes(new Date(), 5), []);
@@ -135,9 +121,6 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
       return suggestedTimes.filter(time => !isBefore(parseISO(time), fiveMinutesFromNow));
   }, [suggestedTimes, fiveMinutesFromNow]);
   
-  const isCustomTimeValid = useMemo(() => customReminderDateTime && !isBefore(customReminderDateTime, fiveMinutesFromNow), [customReminderDateTime, fiveMinutesFromNow]);
-  const hasCustomTimeSelection = customDate || customTimeValue;
-
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
@@ -147,7 +130,7 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
             <Bell className="h-6 w-6" /> Set Reminders for &quot;{task.title}&quot;
           </DialogTitle>
           <DialogDescription>
-            AI suggestions are for times in the future. You can select multiple. Reminders cannot be set within 5 minutes of the current time.
+            AI suggestions are for times in the future. You can select up to 6 reminders. Reminders cannot be set within 5 minutes of the current time.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto pr-2">
@@ -181,6 +164,7 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
                         id={time} 
                         checked={selectedTimes.includes(time)}
                         onCheckedChange={(checked) => handleCheckboxChange(time, !!checked)}
+                        disabled={selectedTimes.length >= 6 && !selectedTimes.includes(time)}
                     />
                     <Label htmlFor={time} className="cursor-pointer">{format(parseISO(time), 'PPP p')}</Label>
                   </div>
@@ -189,41 +173,6 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
             </div>
           )}
           
-          <div className="space-y-2">
-              <Label>Custom Reminder</Label>
-              <div className="flex gap-2">
-                <Popover>
-                  <PopoverTrigger asChild>
-                      <Button
-                      variant={'outline'}
-                      className={cn(
-                          'w-full justify-start text-left font-normal',
-                          !customDate && 'text-muted-foreground'
-                      )}
-                      >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {customDate ? format(customDate, 'PPP') : <span>Pick a date</span>}
-                      </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                      <Calendar
-                      mode="single"
-                      selected={customDate}
-                      onSelect={setCustomDate}
-                      initialFocus
-                      disabled={(date) => isBefore(date, new Date(new Date().setHours(0,0,0,0)))}
-                      />
-                  </PopoverContent>
-                </Popover>
-                <Input type="time" value={customTimeValue} onChange={e => setCustomTimeValue(e.target.value)} className='w-[120px]' />
-              </div>
-
-                {hasCustomTimeSelection && !isCustomTimeValid && (
-                    <p className="text-sm text-destructive">Custom time must be at least 5 minutes in the future.</p>
-                )}
-          </div>
-
-
           <div className="grid gap-1.5">
             <Label htmlFor="message">Reminder Message</Label>
             <Input id="message" value={message} onChange={e => setMessage(e.target.value)} />
@@ -231,7 +180,7 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setIsOpen(false)}>Cancel</Button>
-          <Button onClick={handleSave} disabled={isSaving || isLoadingSuggestions || !notificationEmail || (selectedTimes.length === 0 && !isCustomTimeValid)}>
+          <Button onClick={handleSave} disabled={isSaving || isLoadingSuggestions || !notificationEmail || selectedTimes.length === 0}>
             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Save Reminders
           </Button>
