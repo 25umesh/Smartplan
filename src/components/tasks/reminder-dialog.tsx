@@ -92,7 +92,7 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
 
   const handleSave = async () => {
     let remindersToSet = selectedTimes.map(time => ({ remindAt: time, message }));
-    if (customTime) {
+    if (customTime && isCustomTimeValid) {
       remindersToSet.push({ remindAt: customTime.toISOString(), message });
     }
 
