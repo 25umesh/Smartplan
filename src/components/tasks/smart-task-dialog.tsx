@@ -19,7 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Bell, CalendarIcon, Loader2, PlusCircle, Sparkles, Trash2 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
-import { format, addMinutes, isBefore, sub, parseISO, differenceInMinutes, set } from "date-fns";
+import { format, addMinutes, isBefore, sub, parseISO, differenceInMinutes, set, formatISO } from "date-fns";
 import { detectDetailsAction, addTask, suggestRemindersAction } from "@/lib/actions";
 import { useToast } from "@/hooks/use-toast";
 import type { Reminder } from "@/lib/types";
@@ -125,17 +125,18 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
   
   const getFinalDueDate = () => {
     if (!dueDate) return undefined;
-
-    let finalDueDate = dueDate;
-
+  
     if (includeTime) {
       const [hours, minutes] = time.split(':').map(Number);
-      finalDueDate = set(finalDueDate, { hours, minutes, seconds: 0, milliseconds: 0 });
+      // Create a string in 'yyyy-MM-dd' format from the dueDate
+      const datePart = format(dueDate, 'yyyy-MM-dd');
+      // Combine them into a full ISO-like string that the Date constructor can parse correctly as local time
+      const dateTimeString = `${datePart}T${time}:00`;
+      return new Date(dateTimeString);
     } else {
-        finalDueDate = set(finalDueDate, { hours: 0, minutes: 0, seconds: 0, milliseconds: 0 });
+      // If no time is included, set it to the start of the day
+      return set(dueDate, { hours: 0, minutes: 0, seconds: 0, milliseconds: 0 });
     }
-    
-    return finalDueDate;
   }
   
   const isDueDateValid = useMemo(() => {
@@ -466,3 +467,5 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
     </Dialog>
   );
 }
+
+    
