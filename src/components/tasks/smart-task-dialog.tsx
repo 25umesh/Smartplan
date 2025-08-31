@@ -19,7 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Bell, CalendarIcon, Loader2, PlusCircle, Sparkles, Trash2 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
-import { format, addMinutes, isBefore, sub, parseISO, differenceInMinutes, set, formatISO } from "date-fns";
+import { format, addMinutes, isBefore, sub, parseISO, differenceInMinutes, set } from "date-fns";
 import { detectDetailsAction, addTask, suggestRemindersAction } from "@/lib/actions";
 import { useToast } from "@/hooks/use-toast";
 import type { Reminder } from "@/lib/types";
@@ -125,18 +125,13 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
   
   const getFinalDueDate = () => {
     if (!dueDate) return undefined;
-  
-    if (includeTime) {
-      const [hours, minutes] = time.split(':').map(Number);
-      // Create a string in 'yyyy-MM-dd' format from the dueDate
-      const datePart = format(dueDate, 'yyyy-MM-dd');
-      // Combine them into a full ISO-like string that the Date constructor can parse correctly as local time
-      const dateTimeString = `${datePart}T${time}:00`;
-      return new Date(dateTimeString);
-    } else {
+    if (!includeTime) {
       // If no time is included, set it to the start of the day
       return set(dueDate, { hours: 0, minutes: 0, seconds: 0, milliseconds: 0 });
     }
+    const [hours, minutes] = time.split(':').map(Number);
+    // Use `set` to avoid timezone issues that can occur with the Date constructor.
+    return set(dueDate, { hours, minutes, seconds: 0, milliseconds: 0 });
   }
   
   const isDueDateValid = useMemo(() => {
@@ -172,6 +167,8 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
     const finalDueDate = getFinalDueDate();
 
     let remindersToSet: Omit<Reminder, 'id' | 'sent'>[] = [];
+    let formattedReminders: { message: string; time: string }[] = [];
+
     if(finalDueDate) {
       const fiveMinutesFromNow = addMinutes(new Date(), 5);
       const calculatedReminders = reminders.map(r => {
@@ -186,6 +183,10 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
         return;
       }
       remindersToSet = calculatedReminders.map(r => ({...r, remindAt: r.remindAt.toISOString()}));
+      formattedReminders = calculatedReminders.map(r => ({
+        message: r.message,
+        time: format(r.remindAt, 'PPP p')
+      }));
     }
     
     try {
@@ -193,7 +194,7 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
             title,
             description,
             dueDate: finalDueDate ? finalDueDate.toISOString() : null,
-        }, notificationEmail, remindersToSet);
+        }, notificationEmail, remindersToSet, formattedReminders);
         
         toast({ title: "Task Added", description: `"${title}" has been added.` });
         setIsOpen(false);
@@ -467,5 +468,3 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
     </Dialog>
   );
 }
-
-    

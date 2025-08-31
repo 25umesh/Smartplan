@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Bell, Loader2, PlusCircle, Sparkles, Trash2 } from 'lucide-react';
-import { addMinutes, isBefore, parseISO, sub, differenceInMinutes } from 'date-fns';
+import { addMinutes, isBefore, parseISO, sub, differenceInMinutes, format } from 'date-fns';
 import { addReminders, suggestRemindersAction } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import type { Task } from '@/lib/types';
@@ -141,7 +141,18 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
     
     setIsSaving(true);
     try {
-      await addReminders(task.id, remindersToSet.map(r => ({...r, remindAt: r.remindAt.toISOString()})), notificationEmail);
+      const formattedReminders = remindersToSet.map(r => ({
+        message: r.message,
+        time: format(r.remindAt, 'PPP p')
+      }));
+
+      await addReminders(
+        task.id, 
+        remindersToSet.map(r => ({...r, remindAt: r.remindAt.toISOString()})), 
+        notificationEmail,
+        formattedReminders
+      );
+
       toast({ title: 'Reminders Set', description: `Your reminders for "${task.title}" have been saved.` });
       setIsOpen(false);
     } catch (e) {

@@ -47,7 +47,8 @@ export async function getTasks(): Promise<Task[]> {
 export async function addTask(
     taskData: Omit<Task, 'id' | 'createdAt' | 'completed' | 'reminders'>,
     toEmail: string | null,
-    remindersData: Omit<Reminder, 'id' | 'sent'>[] = []
+    remindersData: Omit<Reminder, 'id' | 'sent'>[] = [],
+    formattedReminders: { message: string; time: string }[] = []
 ) {
     const tasks = await readTasks();
 
@@ -71,9 +72,9 @@ export async function addTask(
     if (toEmail) {
         let emailBody = `<h1>Task Created</h1><p>Your new task, "<strong>${newTask.title}</strong>", has been successfully created.</p>`;
 
-        if (newReminders.length > 0) {
-            const reminderListHtml = newReminders
-                .map(r => `<li>${format(new Date(r.remindAt), 'PPP p')} - <em>${r.message}</em></li>`)
+        if (formattedReminders.length > 0) {
+            const reminderListHtml = formattedReminders
+                .map(r => `<li>${r.time} - <em>${r.message}</em></li>`)
                 .join('');
             emailBody += `<h2>Reminders Set:</h2><ul>${reminderListHtml}</ul>`;
         }
@@ -127,7 +128,12 @@ export async function toggleTaskCompletion(taskId: string) {
   }
 }
 
-export async function addReminders(taskId: string, remindersData: Omit<Reminder, 'id' | 'sent'>[], toEmail: string | null) {
+export async function addReminders(
+    taskId: string, 
+    remindersData: Omit<Reminder, 'id' | 'sent'>[], 
+    toEmail: string | null,
+    formattedReminders: { message: string; time: string }[] = []
+) {
     const tasks = await readTasks();
     const taskIndex = tasks.findIndex(t => t.id === taskId);
     if (taskIndex === -1) {
@@ -144,9 +150,9 @@ export async function addReminders(taskId: string, remindersData: Omit<Reminder,
     await writeTasks(tasks);
 
     // Send reminder confirmation email if an email address is provided
-    if (toEmail && newReminders.length > 0) {
-        const reminderListHtml = newReminders
-            .map(r => `<li>${format(new Date(r.remindAt), 'PPP p')} - <em>${r.message}</em></li>`)
+    if (toEmail && formattedReminders.length > 0) {
+        const reminderListHtml = formattedReminders
+            .map(r => `<li>${r.time} - <em>${r.message}</em></li>`)
             .join('');
         
         await sendEmailAction({
