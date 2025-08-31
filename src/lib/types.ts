@@ -12,7 +12,6 @@ export interface Task {
   title: string;
   description?: string | null;
   dueDate?: string | null; // ISO string
-  priority?: 'low' | 'medium' | 'high' | null;
   completed: boolean;
   createdAt: string; // ISO string
   reminders: Reminder[];

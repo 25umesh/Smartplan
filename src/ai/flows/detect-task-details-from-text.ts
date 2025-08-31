@@ -21,7 +21,6 @@ const DetectTaskDetailsFromTextOutputSchema = z.object({
   taskName: z.string().describe("The name of the task."),
   deadline: z.string().describe("The deadline of the task, in ISO format, or null if not found.").nullable(),
   description: z.string().describe("A detailed description of the task.").nullable(),
-  priority: z.string().describe("The priority of the task (e.g., high, medium, low).").nullable(),
 });
 export type DetectTaskDetailsFromTextOutput = z.infer<typeof DetectTaskDetailsFromTextOutputSchema>;
 
@@ -33,7 +32,7 @@ const prompt = ai.definePrompt({
   name: 'detectTaskDetailsFromTextPrompt',
   input: {schema: DetectTaskDetailsFromTextInputSchema},
   output: {schema: DetectTaskDetailsFromTextOutputSchema},
-  prompt: `You are an AI assistant designed to extract task details from a given text. Your goal is to identify the task name, deadline, description, and priority, if present. If a piece of information is not present, set the output field to null.
+  prompt: `You are an AI assistant designed to extract task details from a given text. Your goal is to identify the task name, deadline, and description, if present. If a piece of information is not present, set the output field to null.
 
 Analyze the following text:
 

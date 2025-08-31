@@ -22,7 +22,6 @@ import { cn } from "@/lib/utils";
 import { format, addMinutes, isBefore, parseISO } from "date-fns";
 import { detectDetailsAction, addTask, suggestRemindersAction } from "@/lib/actions";
 import { useToast } from "@/hooks/use-toast";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import type { Task, Reminder } from "@/lib/types";
 import { Alert, AlertDescription } from "../ui/alert";
 import { Switch } from "../ui/switch";
@@ -44,7 +43,6 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState<Date | undefined>();
-  const [priority, setPriority] = useState<Task['priority']>();
   const [includeTime, setIncludeTime] = useState(false);
   const [time, setTime] = useState("09:00");
   
@@ -68,7 +66,6 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
     setTitle("");
     setDescription("");
     setDueDate(undefined);
-    setPriority(undefined);
     setIncludeTime(false);
     setTime("09:00");
     // Reminders
@@ -111,7 +108,6 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
             }
           }
       }
-      setPriority(result.data.priority as Task['priority'] || undefined);
     }
     setIsDetecting(false);
   };
@@ -179,7 +175,6 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
             title,
             description,
             dueDate: finalDueDate ? finalDueDate.toISOString() : null,
-            priority: priority || null,
         }, notificationEmail, remindersToSet);
         
         toast({ title: "Task Added", description: `"${title}" has been added.` });
@@ -225,7 +220,7 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
                 <Label htmlFor="raw-text">Task Description</Label>
                 <Input
                     id="raw-text"
-                    placeholder="e.g., Finish Q3 report by this Friday at 5pm (high priority)"
+                    placeholder="e.g., Finish Q3 report by this Friday at 5pm"
                     value={rawText}
                     onChange={(e) => setRawText(e.target.value)}
                 />
@@ -305,19 +300,6 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
                 <Label htmlFor="description">Description</Label>
                 <Textarea id="description" value={description} onChange={e => setDescription(e.target.value)} />
             </div>
-            <div className="grid gap-1.5 sm:max-w-xs">
-                <Label>Priority</Label>
-                    <Select value={priority} onValueChange={(value: Task['priority']) => setPriority(value)}>
-                        <SelectTrigger>
-                            <SelectValue placeholder="Set priority" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="low">Low</SelectItem>
-                            <SelectItem value="medium">Medium</SelectItem>
-                            <SelectItem value="high">High</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
             </div>
         )}
 

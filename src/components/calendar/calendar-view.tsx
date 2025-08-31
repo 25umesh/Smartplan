@@ -6,19 +6,12 @@ import type { Task } from '@/lib/types';
 import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { isSameDay, format } from 'date-fns';
-import { Badge } from '../ui/badge';
 import { CheckCircle2, Circle } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 
 interface CalendarViewProps {
   tasks: Task[];
 }
-
-const priorityStyles = {
-  low: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-  medium: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-  high: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-};
 
 export function CalendarView({ tasks }: CalendarViewProps) {
   const [date, setDate] = useState<Date | undefined>(new Date());
@@ -97,7 +90,6 @@ export function CalendarView({ tasks }: CalendarViewProps) {
                       {task.completed ? <CheckCircle2 className="mt-1 h-4 w-4 flex-shrink-0 text-green-500" /> : <Circle className="mt-1 h-4 w-4 flex-shrink-0 text-muted-foreground" />}
                       <div>
                         <p className={task.completed ? 'text-muted-foreground line-through' : ''}>{task.title}</p>
-                        {task.priority && <Badge variant="outline" className={`mt-1 text-xs ${priorityStyles[task.priority]}`}>{task.priority}</Badge>}
                       </div>
                     </motion.li>
                   ))}

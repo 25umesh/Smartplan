@@ -8,7 +8,6 @@ import type { Task } from '@/lib/types';
 import { Button } from '../ui/button';
 import { Checkbox } from '../ui/checkbox';
 import { Card, CardContent } from '../ui/card';
-import { Badge } from '../ui/badge';
 import { format, parseISO } from 'date-fns';
 import { deleteTask, toggleTaskCompletion } from '@/lib/actions';
 import { Trash2, Calendar, Bell } from 'lucide-react';
@@ -19,12 +18,6 @@ import { ReminderDialog } from './reminder-dialog';
 interface DashboardClientProps {
   initialTasks: Task[];
 }
-
-const priorityStyles = {
-  low: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-  medium: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-  high: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-};
 
 export function DashboardClient({ initialTasks }: DashboardClientProps) {
   const [tasks, setTasks] = useState(initialTasks);
@@ -137,9 +130,6 @@ function TaskItem({ task, onToggle, onDelete }: { task: Task, onToggle: (id: str
                 <Calendar className="h-4 w-4" />
                 <span>{format(displayDate, 'MMM d')}</span>
               </div>
-            )}
-            {task.priority && (
-              <Badge variant="outline" className={cn('text-xs', priorityStyles[task.priority])}>{task.priority}</Badge>
             )}
           </div>
         </div>
