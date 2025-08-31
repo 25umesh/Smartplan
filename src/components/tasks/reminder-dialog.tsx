@@ -14,9 +14,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Bell, Loader2, PlusCircle, Trash2, X } from 'lucide-react';
-import { addMinutes, isBefore, parseISO, sub } from 'date-fns';
-import { addReminders } from '@/lib/actions';
+import { Bell, Loader2, PlusCircle, Sparkles, Trash2 } from 'lucide-react';
+import { addMinutes, isBefore, parseISO, sub, differenceInMinutes, differenceInHours, differenceInDays } from 'date-fns';
+import { addReminders, suggestRemindersAction } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import type { Task } from '@/lib/types';
 import { Alert, AlertDescription } from '../ui/alert';
@@ -27,7 +27,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { cn } from '@/lib/utils';
 
 interface ReminderDialogProps {
   task: Task;
@@ -45,6 +44,7 @@ interface RelativeReminder {
 export function ReminderDialog({ task, children }: ReminderDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSuggesting, setIsSuggesting] = useState(false);
   const [reminders, setReminders] = useState<RelativeReminder[]>([]);
   const [message, setMessage] = useState('Your friendly reminder!');
   const [notificationEmail, setNotificationEmail] = useState<string | null>(null);
@@ -57,6 +57,7 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
     } else {
       // Reset state on close
       setIsSaving(false);
+      setIsSuggesting(false);
       setReminders([]);
       setMessage('Your friendly reminder!');
     }
@@ -78,6 +79,39 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
   const updateReminder = (id: string, value: Partial<RelativeReminder>) => {
     setReminders(reminders.map(r => (r.id === id ? { ...r, ...value } : r)));
   };
+
+  const handleSuggestReminders = async () => {
+    if (!task.dueDate) return;
+    setIsSuggesting(true);
+    const result = await suggestRemindersAction({
+      taskDescription: task.title,
+      deadline: task.dueDate
+    });
+
+    if (result.error) {
+      toast({ title: "Suggestion Failed", description: result.error, variant: 'destructive' });
+    } else if (result.data) {
+      const dueDate = parseISO(task.dueDate);
+      const suggestedRelativeReminders = result.data.suggestedReminderTimes.map(timeStr => {
+        const remindAt = parseISO(timeStr);
+        const days = differenceInDays(dueDate, remindAt);
+        const hours = differenceInHours(dueDate, remindAt) % 24;
+        const minutes = differenceInMinutes(dueDate, remindAt) % 60;
+        
+        if (days > 0) return { id: crypto.randomUUID(), value: days, unit: 'days' as ReminderUnit };
+        if (hours > 0) return { id: crypto.randomUUID(), value: hours, unit: 'hours' as ReminderUnit };
+        return { id: crypto.randomUUID(), value: Math.max(5, minutes), unit: 'minutes' as ReminderUnit };
+      }).filter(r => r !== null);
+
+      const uniqueSuggestions = Array.from(new Map(suggestedRelativeReminders.map(item => [`${item.value}-${item.unit}`, item])).values());
+      const combined = [...reminders, ...uniqueSuggestions];
+      const finalReminders = Array.from(new Map(combined.map(item => [`${item.value}-${item.unit}`, item])).values()).slice(0, 6);
+
+      setReminders(finalReminders);
+      toast({ title: "Suggestions Added", description: "Optimal reminder times have been added to the list." });
+    }
+    setIsSuggesting(false);
+  }
 
   const handleSave = async () => {
     if (!task.dueDate) {
@@ -145,7 +179,13 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
                     <Input id="message" value={message} onChange={e => setMessage(e.target.value)} />
                 </div>
                 <div className="space-y-3">
-                    <Label>Reminders</Label>
+                    <div className="flex items-center justify-between">
+                      <Label>Reminders</Label>
+                      <Button variant="outline" size="sm" onClick={handleSuggestReminders} disabled={isSuggesting || reminders.length >= 6}>
+                          {isSuggesting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Sparkles className="mr-2 h-4 w-4"/>}
+                          Suggest
+                      </Button>
+                    </div>
                     {reminders.map((reminder) => (
                         <div key={reminder.id} className="flex items-center gap-2 p-2 border rounded-lg">
                            <Input

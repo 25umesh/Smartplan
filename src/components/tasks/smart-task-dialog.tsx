@@ -19,8 +19,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Bell, CalendarIcon, Loader2, PlusCircle, Sparkles, Trash2 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
-import { format, addMinutes, isBefore, sub, parseISO } from "date-fns";
-import { detectDetailsAction, addTask } from "@/lib/actions";
+import { format, addMinutes, isBefore, sub, parseISO, differenceInDays, differenceInHours, differenceInMinutes } from "date-fns";
+import { detectDetailsAction, addTask, suggestRemindersAction } from "@/lib/actions";
 import { useToast } from "@/hooks/use-toast";
 import type { Reminder } from "@/lib/types";
 import { Alert, AlertDescription } from "../ui/alert";
@@ -63,6 +63,7 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
   // --- Step 2: Reminders State ---
   const [reminders, setReminders] = useState<RelativeReminder[]>([]);
   const [message, setMessage] = useState('Your friendly reminder!');
+  const [isSuggesting, setIsSuggesting] = useState(false);
 
   // --- Common State ---
   const [isSaving, setIsSaving] = useState(false);
@@ -81,6 +82,7 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
     // Reminders
     setReminders([]);
     setMessage('Your friendly reminder!');
+    setIsSuggesting(false);
     // Common
     setIsSaving(false);
     setStep('details');
@@ -211,6 +213,40 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
   const updateReminder = (id: string, value: Partial<RelativeReminder>) => {
     setReminders(reminders.map(r => (r.id === id ? { ...r, ...value } : r)));
   };
+
+  const handleSuggestReminders = async () => {
+    const finalDueDate = getFinalDueDate();
+    if (!finalDueDate) return;
+    setIsSuggesting(true);
+    const result = await suggestRemindersAction({
+      taskDescription: title,
+      deadline: finalDueDate.toISOString()
+    });
+
+    if (result.error) {
+      toast({ title: "Suggestion Failed", description: result.error, variant: 'destructive' });
+    } else if (result.data) {
+      const dueDate = finalDueDate;
+      const suggestedRelativeReminders = result.data.suggestedReminderTimes.map(timeStr => {
+        const remindAt = parseISO(timeStr);
+        const days = differenceInDays(dueDate, remindAt);
+        const hours = differenceInHours(dueDate, remindAt) % 24;
+        const minutes = differenceInMinutes(dueDate, remindAt) % 60;
+        
+        if (days > 0) return { id: crypto.randomUUID(), value: days, unit: 'days' as ReminderUnit };
+        if (hours > 0) return { id: crypto.randomUUID(), value: hours, unit: 'hours' as ReminderUnit };
+        return { id: crypto.randomUUID(), value: Math.max(5, minutes), unit: 'minutes' as ReminderUnit };
+      }).filter(r => r !== null);
+
+      const uniqueSuggestions = Array.from(new Map(suggestedRelativeReminders.map(item => [`${item.value}-${item.unit}`, item])).values());
+      const combined = [...reminders, ...uniqueSuggestions];
+      const finalReminders = Array.from(new Map(combined.map(item => [`${item.value}-${item.unit}`, item])).values()).slice(0, 6);
+
+      setReminders(finalReminders);
+      toast({ title: "Suggestions Added", description: "Optimal reminder times have been added to the list." });
+    }
+    setIsSuggesting(false);
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -347,7 +383,13 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
                             <Input id="message" value={message} onChange={e => setMessage(e.target.value)} />
                         </div>
                         <div className="space-y-3">
-                            <Label>Reminders</Label>
+                            <div className="flex items-center justify-between">
+                                <Label>Reminders</Label>
+                                <Button variant="outline" size="sm" onClick={handleSuggestReminders} disabled={isSuggesting || reminders.length >= 6}>
+                                    {isSuggesting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Sparkles className="mr-2 h-4 w-4"/>}
+                                    Suggest
+                                </Button>
+                            </div>
                             {reminders.map((reminder) => (
                                 <div key={reminder.id} className="flex items-center gap-2 p-2 border rounded-lg">
                                    <Input
