@@ -25,6 +25,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import type { Task } from "@/lib/types";
 import { Alert, AlertDescription } from "../ui/alert";
+import { Switch } from "../ui/switch";
 
 interface SmartTaskDialogProps {
   children: ReactNode;
@@ -42,6 +43,9 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
   const [dueDate, setDueDate] = useState<Date | undefined>();
   const [priority, setPriority] = useState<Task['priority'] | undefined>();
   const [notificationEmail, setNotificationEmail] = useState<string | null>(null);
+  const [includeTime, setIncludeTime] = useState(false);
+  const [time, setTime] = useState("09:00");
+
 
   useEffect(() => {
     if (isOpen) {
@@ -56,6 +60,8 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
         setDescription("");
         setDueDate(undefined);
         setPriority(undefined);
+        setIncludeTime(false);
+        setTime("09:00");
     }
   }, [isOpen])
 
@@ -72,6 +78,11 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
           const date = new Date(result.data.deadline);
           if (!isNaN(date.getTime())) {
             setDueDate(date);
+            // Check if time is specified in the detected deadline
+            if (date.getUTCHours() !== 0 || date.getUTCMinutes() !== 0) {
+              setIncludeTime(true);
+              setTime(format(date, "HH:mm"));
+            }
           }
       }
       setPriority(result.data.priority as Task['priority'] || undefined);
@@ -85,11 +96,22 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
         return;
     }
     setIsSaving(true);
+
+    let finalDueDate: Date | undefined = dueDate;
+
+    if (dueDate && includeTime) {
+        const newDueDate = new Date(dueDate);
+        const [hours, minutes] = time.split(':').map(Number);
+        newDueDate.setHours(hours, minutes);
+        finalDueDate = newDueDate;
+    }
+
+
     try {
         await addTask({
             title,
             description,
-            dueDate: dueDate ? dueDate.toISOString() : null,
+            dueDate: finalDueDate ? finalDueDate.toISOString() : null,
             priority: priority || null,
         }, notificationEmail);
         toast({ title: "Task Added", description: `"${title}" has been added.` });
@@ -171,6 +193,27 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
               </Popover>
             </div>
           </div>
+           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="flex items-center space-x-2 rounded-lg border p-4">
+               <Switch
+                id="set-time"
+                checked={includeTime}
+                onCheckedChange={setIncludeTime}
+              />
+              <div className="grid gap-1.5">
+                <Label htmlFor="set-time">Set Time</Label>
+                <p className="text-xs text-muted-foreground">
+                  Specify a time for this item.
+                </p>
+              </div>
+            </div>
+            {includeTime && (
+                 <div className="grid gap-1.5">
+                    <Label htmlFor="time">Time</Label>
+                    <Input id="time" type="time" value={time} onChange={(e) => setTime(e.target.value)} />
+                </div>
+            )}
+           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="description">Description</Label>
             <Textarea id="description" value={description} onChange={e => setDescription(e.target.value)} />
