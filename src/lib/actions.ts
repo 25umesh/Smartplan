@@ -10,7 +10,7 @@ import { generateScheduleFromPrompt } from '@/ai/flows/generate-schedule-from-pr
 import { suggestOptimalReminderTimes } from '@/ai/flows/suggest-optimal-reminder-times';
 import { sendEmailAction } from '@/ai/flows/send-email-flow';
 import { z } from 'zod';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 
 const tasksFilePath = path.join(process.cwd(), 'data', 'tasks.json');
 
@@ -71,6 +71,10 @@ export async function addTask(
     // Send confirmation email if an email address is provided
     if (toEmail) {
         let emailBody = `<h1>Task Created</h1><p>Your new task, "<strong>${newTask.title}</strong>", has been successfully created.</p>`;
+        
+        if (newTask.dueDate) {
+          emailBody += `<p><strong>Due Date:</strong> ${format(parseISO(newTask.dueDate), 'PPP p')}</p>`;
+        }
 
         if (formattedReminders.length > 0) {
             const reminderListHtml = formattedReminders
