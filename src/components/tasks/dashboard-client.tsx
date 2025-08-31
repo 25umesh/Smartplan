@@ -11,9 +11,10 @@ import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { format, parseISO } from 'date-fns';
 import { deleteTask, toggleTaskCompletion } from '@/lib/actions';
-import { Trash2, Calendar } from 'lucide-react';
+import { Trash2, Calendar, Bell } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { ReminderDialog } from './reminder-dialog';
 
 interface DashboardClientProps {
   initialTasks: Task[];
@@ -51,6 +52,16 @@ export function DashboardClient({ initialTasks }: DashboardClientProps) {
       toast({ title: 'Error', description: 'Failed to delete task.', variant: 'destructive' });
     }
   };
+  
+  // This is a client component, so we need to handle the case where
+  // the initial tasks are not available yet.
+  if (!tasks) {
+    return (
+        <div className="flex flex-col items-center justify-center text-center py-16">
+            <h2 className="text-2xl font-semibold">Loading tasks...</h2>
+        </div>
+    );
+  }
 
   const upcomingTasks = tasks.filter(t => !t.completed);
   const completedTasks = tasks.filter(t => t.completed);
@@ -129,6 +140,12 @@ function TaskItem({ task, onToggle, onDelete }: { task: Task, onToggle: (id: str
             )}
           </div>
         </div>
+        <ReminderDialog task={task}>
+            <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8 text-muted-foreground hover:text-primary">
+                <Bell className="h-4 w-4" />
+                <span className="sr-only">Set reminder</span>
+            </Button>
+        </ReminderDialog>
         <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => onDelete(task.id)}>
           <Trash2 className="h-4 w-4" />
           <span className="sr-only">Delete task</span>

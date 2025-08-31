@@ -4,10 +4,11 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { revalidatePath } from 'next/cache';
-import type { Task } from './types';
+import type { Reminder, Task } from './types';
 import { detectTaskDetailsFromText } from '@/ai/flows/detect-task-details-from-text';
 import { generateScheduleFromPrompt } from '@/ai/flows/generate-schedule-from-prompt';
 import { suggestOptimalReminderTimes } from '@/ai/flows/suggest-optimal-reminder-times';
+import { sendEmailAction } from '@/ai/flows/send-email-flow';
 import { z } from 'zod';
 
 const tasksFilePath = path.join(process.cwd(), 'data', 'tasks.json');
@@ -53,6 +54,13 @@ export async function addTask(taskData: Omit<Task, 'id' | 'createdAt' | 'complet
   };
   tasks.unshift(newTask);
   await writeTasks(tasks);
+
+  // Send confirmation email
+  await sendEmailAction({
+    subject: `Task Created: ${newTask.title}`,
+    body: `<h1>Task Created</h1><p>Your new task, "${newTask.title}", has been successfully created.</p>`,
+  });
+
   revalidatePath('/');
   revalidatePath('/calendar');
   return newTask;
@@ -89,6 +97,32 @@ export async function toggleTaskCompletion(taskId: string) {
     revalidatePath('/calendar');
   }
 }
+
+export async function addReminder(taskId: string, reminderData: Omit<Reminder, 'id' | 'sent'>) {
+    const tasks = await readTasks();
+    const taskIndex = tasks.findIndex(t => t.id === taskId);
+    if (taskIndex === -1) {
+        throw new Error('Task not found');
+    }
+    const newReminder: Reminder = {
+        id: crypto.randomUUID(),
+        sent: false,
+        ...reminderData,
+    };
+    tasks[taskIndex].reminders.push(newReminder);
+    await writeTasks(tasks);
+
+    // Send reminder confirmation email
+    await sendEmailAction({
+        subject: `Reminder Set: ${tasks[taskIndex].title}`,
+        body: `<h1>Reminder Set</h1><p>A reminder for your task, "${tasks[taskIndex].title}", has been set for ${new Date(newReminder.remindAt).toLocaleString()}.</p><p>Message: ${newReminder.message}</p>`,
+    });
+
+    revalidatePath('/');
+    revalidatePath('/calendar');
+    return newReminder;
+}
+
 
 // AI-related actions
 export async function detectDetailsAction(text: string) {
