@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, type ReactNode, useEffect } from "react";
+import { useState, type ReactNode, useEffect, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -19,7 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Bell, CalendarIcon, Loader2, Sparkles } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
-import { format, addMinutes, isBefore, parseISO } from "date-fns";
+import { format, addMinutes, isBefore, parseISO, add, isValid } from "date-fns";
 import { detectDetailsAction, addTask, suggestRemindersAction } from "@/lib/actions";
 import { useToast } from "@/hooks/use-toast";
 import type { Task, Reminder } from "@/lib/types";
@@ -51,7 +51,8 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
   const [suggestedTimes, setSuggestedTimes] = useState<string[]>([]);
   const [reasoning, setReasoning] = useState('');
   const [selectedTimes, setSelectedTimes] = useState<string[]>([]);
-  const [customTime, setCustomTime] = useState<Date | undefined>();
+  const [customDate, setCustomDate] = useState<Date | undefined>();
+  const [customTimeValue, setCustomTimeValue] = useState<string>('');
   const [message, setMessage] = useState('Your friendly reminder!');
 
   // --- Common State ---
@@ -73,7 +74,8 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
     setSuggestedTimes([]);
     setReasoning('');
     setSelectedTimes([]);
-    setCustomTime(undefined);
+    setCustomDate(undefined);
+    setCustomTimeValue('');
     setMessage('Your friendly reminder!');
     // Common
     setIsSaving(false);
@@ -112,6 +114,26 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
     setIsDetecting(false);
   };
   
+  const getFinalDueDate = () => {
+    if (!dueDate) return undefined;
+
+    let finalDueDate = new Date(dueDate);
+    if(includeTime) {
+      const [hours, minutes] = time.split(':').map(Number);
+      finalDueDate.setHours(hours, minutes, 0, 0);
+    } else {
+      finalDueDate.setHours(0,0,0,0);
+    }
+    return finalDueDate;
+  }
+  
+  const isDueDateValid = useMemo(() => {
+    const finalDueDate = getFinalDueDate();
+    if(!finalDueDate) return true; // No due date is valid
+    return isBefore(addMinutes(new Date(), 10), finalDueDate);
+  }, [dueDate, includeTime, time]);
+
+
   const handleFetchSuggestions = async (taskTitle: string, taskDescription?: string, taskDueDate?: Date) => {
     setIsLoadingSuggestions(true);
     setSuggestedTimes([]);
@@ -139,14 +161,12 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
         toast({ title: "Title is required", variant: "destructive" });
         return;
     }
-    setStep('reminders');
-    let finalDueDate: Date | undefined = dueDate;
-    if (dueDate && includeTime) {
-        const newDueDate = new Date(dueDate);
-        const [hours, minutes] = time.split(':').map(Number);
-        newDueDate.setHours(hours, minutes);
-        finalDueDate = newDueDate;
+    if (!isDueDateValid) {
+        toast({ title: "Due date must be at least 10 minutes in the future.", variant: "destructive" });
+        return;
     }
+    setStep('reminders');
+    const finalDueDate = getFinalDueDate();
     handleFetchSuggestions(title, description, finalDueDate);
   }
 
@@ -155,19 +175,18 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
         toast({ title: "Title is required", variant: "destructive" });
         return;
     }
-    setIsSaving(true);
-
-    let finalDueDate: Date | undefined = dueDate;
-    if (dueDate && includeTime) {
-        const newDueDate = new Date(dueDate);
-        const [hours, minutes] = time.split(':').map(Number);
-        newDueDate.setHours(hours, minutes);
-        finalDueDate = newDueDate;
+    if (!isDueDateValid) {
+        toast({ title: "Due date must be at least 10 minutes in the future.", variant: "destructive" });
+        return;
     }
 
+    setIsSaving(true);
+
+    const finalDueDate = getFinalDueDate();
+    
     let remindersToSet: Omit<Reminder, 'id' | 'sent'>[] = selectedTimes.map(time => ({ remindAt: time, message }));
-    if (customTime && isCustomTimeValid) {
-      remindersToSet.push({ remindAt: customTime.toISOString(), message });
+    if (customReminderDateTime && isCustomTimeValid) {
+      remindersToSet.push({ remindAt: customReminderDateTime.toISOString(), message });
     }
 
     try {
@@ -191,9 +210,26 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
     );
   }
 
-  const fiveMinutesFromNow = addMinutes(new Date(), 5);
-  const validSuggestedTimes = suggestedTimes.filter(time => !isBefore(parseISO(time), fiveMinutesFromNow));
-  const isCustomTimeValid = customTime && !isBefore(customTime, fiveMinutesFromNow);
+  const fiveMinutesFromNow = useMemo(() => addMinutes(new Date(), 5), []);
+
+  const validSuggestedTimes = useMemo(() => {
+    return suggestedTimes.filter(time => !isBefore(parseISO(time), fiveMinutesFromNow));
+  }, [suggestedTimes, fiveMinutesFromNow]);
+
+  const customReminderDateTime = useMemo(() => {
+    if (!customDate || !customTimeValue) return null;
+    const [hours, minutes] = customTimeValue.split(':').map(Number);
+    const newDate = new Date(customDate);
+    newDate.setHours(hours, minutes, 0, 0);
+    return newDate;
+  }, [customDate, customTimeValue]);
+  
+  const isCustomTimeValid = useMemo(() => {
+    if(!customReminderDateTime) return false;
+    return isBefore(fiveMinutesFromNow, customReminderDateTime);
+  }, [customReminderDateTime, fiveMinutesFromNow]);
+  
+  const hasCustomTimeSelection = customDate || customTimeValue;
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -296,6 +332,9 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
                     </div>
                 )}
             </div>
+             {dueDate && !isDueDateValid && (
+                <p className="text-sm text-destructive">Due date must be at least 10 minutes in the future.</p>
+            )}
             <div className="grid gap-1.5">
                 <Label htmlFor="description">Description</Label>
                 <Textarea id="description" value={description} onChange={e => setDescription(e.target.value)} />
@@ -321,65 +360,60 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
 
                 {!isLoadingSuggestions && validSuggestedTimes.length > 0 && (
                     <div className="space-y-4">
-                    <Alert>
-                        <Sparkles className="h-4 w-4" />
+                      <Alert>
+                          <Sparkles className="h-4 w-4" />
                         <AlertDescription className="text-sm text-muted-foreground">
-                        {reasoning}
+                          {reasoning}
                         </AlertDescription>
-                    </Alert>
-                    <div className="space-y-2">
+                      </Alert>
+                      <div className="space-y-2">
+                        <Label>AI Suggested Times</Label>
                         {validSuggestedTimes.map((time) => (
-                        <div key={time} className="flex items-center space-x-2">
+                          <div key={time} className="flex items-center space-x-2">
                             <Checkbox 
                                 id={time} 
                                 checked={selectedTimes.includes(time)}
                                 onCheckedChange={(checked) => handleCheckboxChange(time, !!checked)}
                             />
                             <Label htmlFor={time} className="cursor-pointer">{format(parseISO(time), 'PPP p')}</Label>
-                        </div>
+                          </div>
                         ))}
-                    </div>
+                      </div>
                     </div>
                 )}
                 
                 <div className="space-y-2">
-                    <Label>Custom time</Label>
-                    <Popover>
+                    <Label>Custom Reminder</Label>
+                    <div className="flex gap-2">
+                      <Popover>
                         <PopoverTrigger asChild>
                             <Button
                             variant={'outline'}
                             className={cn(
                                 'w-full justify-start text-left font-normal',
-                                !customTime && 'text-muted-foreground'
+                                !customDate && 'text-muted-foreground'
                             )}
                             >
                             <CalendarIcon className="mr-2 h-4 w-4" />
-                            {customTime ? format(customTime, 'PPP p') : <span>Pick a date and time</span>}
+                            {customDate ? format(customDate, 'PPP') : <span>Pick a date</span>}
                             </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0">
                             <Calendar
                             mode="single"
-                            selected={customTime}
-                            onSelect={setCustomTime}
+                            selected={customDate}
+                            onSelect={setCustomDate}
                             initialFocus
                             disabled={(date) => isBefore(date, new Date(new Date().setHours(0,0,0,0)))}
                             />
-                            <div className="p-3 border-t border-border">
-                                <Input type="time" onChange={e => {
-                                    const [hours, minutes] = e.target.value.split(':').map(Number);
-                                    setCustomTime(prev => {
-                                        const newDate = prev ? new Date(prev) : new Date();
-                                        newDate.setHours(hours, minutes, 0, 0);
-                                        return newDate;
-                                    });
-                                }}/>
-                            </div>
                         </PopoverContent>
-                        </Popover>
-                        {customTime && !isCustomTimeValid && (
-                            <p className="text-sm text-destructive">Custom time must be at least 5 minutes in the future.</p>
-                        )}
+                      </Popover>
+                      <Input type="time" value={customTimeValue} onChange={e => setCustomTimeValue(e.target.value)} className='w-[120px]' />
+                    </div>
+
+                      {hasCustomTimeSelection && !isCustomTimeValid && (
+                          <p className="text-sm text-destructive">Custom time must be at least 5 minutes in the future.</p>
+                      )}
                 </div>
 
 
@@ -394,7 +428,7 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
           {step === 'details' && (
             <>
               <Button variant="outline" onClick={() => setIsOpen(false)}>Cancel</Button>
-              <Button onClick={handleNext} disabled={isDetecting || !title}>
+              <Button onClick={handleNext} disabled={isDetecting || !title || !isDueDateValid}>
                 Next
               </Button>
             </>
@@ -402,7 +436,7 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
           {step === 'reminders' && (
             <>
               <Button variant="outline" onClick={() => setStep('details')}>Back</Button>
-              <Button onClick={handleSave} disabled={isSaving || isLoadingSuggestions || !notificationEmail}>
+              <Button onClick={handleSave} disabled={isSaving || isLoadingSuggestions || !notificationEmail || (selectedTimes.length === 0 && !isCustomTimeValid)}>
                 {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Save Task
               </Button>

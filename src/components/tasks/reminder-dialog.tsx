@@ -37,7 +37,8 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
   const [suggestedTimes, setSuggestedTimes] = useState<string[]>([]);
   const [reasoning, setReasoning] = useState('');
   const [selectedTimes, setSelectedTimes] = useState<string[]>([]);
-  const [customTime, setCustomTime] = useState<Date | undefined>();
+  const [customDate, setCustomDate] = useState<Date | undefined>();
+  const [customTimeValue, setCustomTimeValue] = useState<string>('');
   const [message, setMessage] = useState('Your friendly reminder!');
   const [notificationEmail, setNotificationEmail] = useState<string | null>(null);
   const { toast } = useToast();
@@ -84,16 +85,26 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
           setSuggestedTimes([]);
           setReasoning('');
           setSelectedTimes([]);
-          setCustomTime(undefined);
+          setCustomDate(undefined);
+          setCustomTimeValue('');
           setMessage('Your friendly reminder!');
       }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
+  const customReminderDateTime = useMemo(() => {
+    if (!customDate || !customTimeValue) return null;
+    const [hours, minutes] = customTimeValue.split(':').map(Number);
+    const newDate = new Date(customDate);
+    newDate.setHours(hours, minutes, 0, 0);
+    return newDate;
+  }, [customDate, customTimeValue]);
+
+
   const handleSave = async () => {
     let remindersToSet = selectedTimes.map(time => ({ remindAt: time, message }));
-    if (customTime && isCustomTimeValid) {
-      remindersToSet.push({ remindAt: customTime.toISOString(), message });
+    if (customReminderDateTime && isCustomTimeValid) {
+      remindersToSet.push({ remindAt: customReminderDateTime.toISOString(), message });
     }
 
     if (remindersToSet.length === 0) {
@@ -124,7 +135,8 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
       return suggestedTimes.filter(time => !isBefore(parseISO(time), fiveMinutesFromNow));
   }, [suggestedTimes, fiveMinutesFromNow]);
   
-  const isCustomTimeValid = useMemo(() => customTime && !isBefore(customTime, fiveMinutesFromNow), [customTime, fiveMinutesFromNow]);
+  const isCustomTimeValid = useMemo(() => customReminderDateTime && !isBefore(customReminderDateTime, fiveMinutesFromNow), [customReminderDateTime, fiveMinutesFromNow]);
+  const hasCustomTimeSelection = customDate || customTimeValue;
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -162,6 +174,7 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
                 </AlertDescription>
               </Alert>
               <div className="space-y-2">
+                <Label>AI Suggested Times</Label>
                 {validSuggestedTimes.map((time) => (
                   <div key={time} className="flex items-center space-x-2">
                     <Checkbox 
@@ -177,41 +190,35 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
           )}
           
           <div className="space-y-2">
-              <Label>Custom time</Label>
-               <Popover>
-                <PopoverTrigger asChild>
-                    <Button
-                    variant={'outline'}
-                    className={cn(
-                        'w-full justify-start text-left font-normal',
-                        !customTime && 'text-muted-foreground'
-                    )}
-                    >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {customTime ? format(customTime, 'PPP p') : <span>Pick a date and time</span>}
-                    </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                    <Calendar
-                    mode="single"
-                    selected={customTime}
-                    onSelect={setCustomTime}
-                    initialFocus
-                    disabled={(date) => isBefore(date, new Date(new Date().setHours(0,0,0,0)))}
-                    />
-                    <div className="p-3 border-t border-border">
-                        <Input type="time" onChange={e => {
-                            const [hours, minutes] = e.target.value.split(':').map(Number);
-                            setCustomTime(prev => {
-                                const newDate = prev ? new Date(prev) : new Date();
-                                newDate.setHours(hours, minutes, 0, 0); // Also reset seconds and ms
-                                return newDate;
-                            });
-                        }}/>
-                    </div>
-                </PopoverContent>
+              <Label>Custom Reminder</Label>
+              <div className="flex gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                      <Button
+                      variant={'outline'}
+                      className={cn(
+                          'w-full justify-start text-left font-normal',
+                          !customDate && 'text-muted-foreground'
+                      )}
+                      >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {customDate ? format(customDate, 'PPP') : <span>Pick a date</span>}
+                      </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                      <Calendar
+                      mode="single"
+                      selected={customDate}
+                      onSelect={setCustomDate}
+                      initialFocus
+                      disabled={(date) => isBefore(date, new Date(new Date().setHours(0,0,0,0)))}
+                      />
+                  </PopoverContent>
                 </Popover>
-                {customTime && !isCustomTimeValid && (
+                <Input type="time" value={customTimeValue} onChange={e => setCustomTimeValue(e.target.value)} className='w-[120px]' />
+              </div>
+
+                {hasCustomTimeSelection && !isCustomTimeValid && (
                     <p className="text-sm text-destructive">Custom time must be at least 5 minutes in the future.</p>
                 )}
           </div>
