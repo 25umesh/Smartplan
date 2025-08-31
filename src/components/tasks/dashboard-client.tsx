@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { Task } from '@/lib/types';
@@ -112,7 +112,14 @@ export function DashboardClient({ initialTasks }: DashboardClientProps) {
 }
 
 function TaskItem({ task, onToggle, onDelete }: { task: Task, onToggle: (id: string) => void, onDelete: (id: string) => void }) {
-  const displayDate = task.dueDate ? parseISO(task.dueDate) : null;
+  const [displayDate, setDisplayDate] = useState<Date | null>(null);
+
+  useEffect(() => {
+    if (task.dueDate) {
+      // Parse the ISO string to a Date object. This will be consistent on client and server.
+      setDisplayDate(parseISO(task.dueDate));
+    }
+  }, [task.dueDate]);
 
   return (
     <Card className={cn('transition-all', task.completed && 'bg-muted/50')}>
