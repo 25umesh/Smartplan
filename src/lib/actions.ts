@@ -114,8 +114,8 @@ export async function addReminder(taskId: string, reminderData: Omit<Reminder, '
 
     // Send reminder confirmation email
     await sendEmailAction({
-        subject: `Reminder Set: ${tasks[taskIndex].title}`,
-        body: `<h1>Reminder Set</h1><p>A reminder for your task, "${tasks[taskIndex].title}", has been set for ${new Date(newReminder.remindAt).toLocaleString()}.</p><p>Message: ${newReminder.message}</p>`,
+        subject: `Reminder Set for "${tasks[taskIndex].title}"`,
+        body: `<h1>Reminder Set</h1><p>A reminder for your task, "<strong>${tasks[taskIndex].title}</strong>", has been set for <strong>${new Date(newReminder.remindAt).toLocaleString()}</strong>.</p><p>Message: ${newReminder.message}</p>`,
     });
 
     revalidatePath('/');

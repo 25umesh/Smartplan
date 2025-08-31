@@ -45,24 +45,33 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
     setIsLoadingSuggestions(true);
     setSuggestedTimes([]);
     setReasoning('');
-    const result = await suggestRemindersAction({
-      taskDescription: task.title + (task.description ? `\n${task.description}` : ''),
-      deadline: task.dueDate || undefined,
-    });
-    if (result.error) {
-      toast({
-        title: 'Failed to get suggestions',
-        description: result.error,
-        variant: 'destructive',
-      });
-    } else if (result.data) {
-      setSuggestedTimes(result.data.suggestedReminderTimes);
-      setReasoning(result.data.reasoning);
-      if (result.data.suggestedReminderTimes.length > 0) {
-        setSelectedTime(result.data.suggestedReminderTimes[0]);
-      }
+    try {
+        const result = await suggestRemindersAction({
+            taskDescription: task.title + (task.description ? `\n${task.description}` : ''),
+            deadline: task.dueDate || undefined,
+        });
+        if (result.error) {
+            toast({
+                title: 'Failed to get suggestions',
+                description: result.error,
+                variant: 'destructive',
+            });
+        } else if (result.data) {
+            setSuggestedTimes(result.data.suggestedReminderTimes);
+            setReasoning(result.data.reasoning);
+            if (result.data.suggestedReminderTimes.length > 0) {
+                setSelectedTime(result.data.suggestedReminderTimes[0]);
+            }
+        }
+    } catch(e) {
+        toast({
+            title: 'An error occurred',
+            description: 'Could not fetch suggestions.',
+            variant: 'destructive',
+        });
+    } finally {
+        setIsLoadingSuggestions(false);
     }
-    setIsLoadingSuggestions(false);
   };
   
   useEffect(() => {
