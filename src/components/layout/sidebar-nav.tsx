@@ -22,6 +22,10 @@ const links = [
   { href: '/calendar', label: 'Calendar', icon: Calendar },
 ];
 
+const bottomLinks = [
+    { href: '/settings', label: 'Settings', icon: Settings },
+];
+
 export function SidebarNav() {
   const pathname = usePathname();
 
@@ -37,7 +41,7 @@ export function SidebarNav() {
           </span>
         </div>
       </SidebarHeader>
-      <SidebarContent className="p-2">
+      <SidebarContent className="flex flex-col justify-between p-2">
         <SidebarMenu>
           {links.map((link) => (
             <SidebarMenuItem key={link.href}>
@@ -62,6 +66,23 @@ export function SidebarNav() {
                 </SidebarMenuButton>
             </ScheduleGeneratorDialog>
           </SidebarMenuItem>
+        </SidebarMenu>
+        <SidebarMenu>
+          {bottomLinks.map((link) => (
+            <SidebarMenuItem key={link.href}>
+              <SidebarMenuButton
+                asChild
+                isActive={pathname === link.href}
+                tooltip={link.label}
+                className="justify-start"
+              >
+                <Link href={link.href}>
+                  <link.icon className="h-5 w-5" />
+                  <span>{link.label}</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))}
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter className="flex items-center justify-end p-2 group-data-[collapsible=icon]:justify-center">

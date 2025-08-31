@@ -16,6 +16,8 @@ export function Header() {
         return 'Dashboard';
       case '/calendar':
         return 'Calendar';
+      case '/settings':
+        return 'Settings';
       default:
         return 'SmartPlan';
     }
