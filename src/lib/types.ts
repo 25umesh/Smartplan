@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 export interface Reminder {
   id: string;
   remindAt: string; // ISO string
@@ -15,3 +17,9 @@ export interface Task {
   createdAt: string; // ISO string
   reminders: Reminder[];
 }
+
+export const SendEmailInputSchema = z.object({
+  subject: z.string().describe('The subject of the email.'),
+  body: z.string().describe('The HTML body of the email.'),
+});
+export type SendEmailInput = z.infer<typeof SendEmailInputSchema>;
