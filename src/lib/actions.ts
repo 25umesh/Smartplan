@@ -44,32 +44,53 @@ export async function getTasks(): Promise<Task[]> {
   return tasks.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }
 
-export async function addTask(taskData: Omit<Task, 'id' | 'createdAt' | 'completed' | 'reminders'>, toEmail: string | null) {
-  const tasks = await readTasks();
-  const newTask: Task = {
-    id: crypto.randomUUID(),
-    completed: false,
-    createdAt: new Date().toISOString(),
-    reminders: [],
-    ...taskData,
-  };
-  tasks.unshift(newTask);
-  await writeTasks(tasks);
+export async function addTask(
+    taskData: Omit<Task, 'id' | 'createdAt' | 'completed' | 'reminders'>,
+    toEmail: string | null,
+    remindersData: Omit<Reminder, 'id' | 'sent'>[] = []
+) {
+    const tasks = await readTasks();
 
-  // Send confirmation email if an email address is provided
-  if (toEmail) {
-      await sendEmailAction({
-        to: toEmail,
-        subject: `Task Created: ${newTask.title}`,
-        body: `<h1>Task Created</h1><p>Your new task, "${newTask.title}", has been successfully created.</p>`,
-      });
-  }
+    const newReminders: Reminder[] = remindersData.map(reminderData => ({
+        id: crypto.randomUUID(),
+        sent: false,
+        ...reminderData,
+    }));
 
-  revalidatePath('/');
-  revalidatePath('/calendar');
-  revalidatePath('/reminders');
-  return newTask;
+    const newTask: Task = {
+        id: crypto.randomUUID(),
+        completed: false,
+        createdAt: new Date().toISOString(),
+        reminders: newReminders,
+        ...taskData,
+    };
+    tasks.unshift(newTask);
+    await writeTasks(tasks);
+
+    // Send confirmation email if an email address is provided
+    if (toEmail) {
+        let emailBody = `<h1>Task Created</h1><p>Your new task, "<strong>${newTask.title}</strong>", has been successfully created.</p>`;
+
+        if (newReminders.length > 0) {
+            const reminderListHtml = newReminders
+                .map(r => `<li>${format(new Date(r.remindAt), 'PPP p')} - <em>${r.message}</em></li>`)
+                .join('');
+            emailBody += `<h2>Reminders Set:</h2><ul>${reminderListHtml}</ul>`;
+        }
+        
+        await sendEmailAction({
+            to: toEmail,
+            subject: `Task Created: ${newTask.title}`,
+            body: emailBody,
+        });
+    }
+
+    revalidatePath('/');
+    revalidatePath('/calendar');
+    revalidatePath('/reminders');
+    return newTask;
 }
+
 
 export async function updateTask(taskId: string, updates: Partial<Task>) {
   const tasks = await readTasks();
