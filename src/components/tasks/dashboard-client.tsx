@@ -53,8 +53,6 @@ export function DashboardClient({ initialTasks }: DashboardClientProps) {
     }
   };
   
-  // This is a client component, so we need to handle the case where
-  // the initial tasks are not available yet.
   if (!tasks) {
     return (
         <div className="flex flex-col items-center justify-center text-center py-16">
@@ -114,8 +112,6 @@ export function DashboardClient({ initialTasks }: DashboardClientProps) {
 }
 
 function TaskItem({ task, onToggle, onDelete }: { task: Task, onToggle: (id: string) => void, onDelete: (id: string) => void }) {
-  // Fix hydration mismatch by parsing the ISO string, which treats it as UTC,
-  // then formatting it. The server and client will now both render the same date.
   const displayDate = task.dueDate ? parseISO(task.dueDate) : null;
 
   return (
