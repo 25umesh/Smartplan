@@ -241,10 +241,12 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
         const hours = Math.floor((totalMinutes % (60*24)) / 60);
         const minutes = totalMinutes % 60;
         
-        if (days > 0 && minutes === 0 && hours === 0) return { id: crypto.randomUUID(), value: days, unit: 'days' as ReminderUnit };
-        if (hours > 0 && minutes === 0) return { id: crypto.randomUUID(), value: hours, unit: 'hours' as ReminderUnit };
-        if (minutes > 0) return { id: crypto.randomUUID(), value: minutes, unit: 'minutes' as ReminderUnit };
-        return null;
+        if (days > 0 && hours === 0 && minutes === 0) return { id: crypto.randomUUID(), value: days, unit: 'days' as ReminderUnit };
+        if (hours > 0 && minutes === 0 && days === 0) return { id: crypto.randomUUID(), value: hours, unit: 'hours' as ReminderUnit };
+        if (minutes > 0 && hours === 0 && days === 0) return { id: crypto.randomUUID(), value: minutes, unit: 'minutes' as ReminderUnit };
+        if (days > 0) return { id: crypto.randomUUID(), value: days, unit: 'days' as ReminderUnit };
+        if (hours > 0) return { id: crypto.randomUUID(), value: hours, unit: 'hours' as ReminderUnit };
+        return { id: crypto.randomUUID(), value: minutes, unit: 'minutes' as ReminderUnit };
       }).filter((r): r is RelativeReminder => r !== null);
 
       const uniqueSuggestions = Array.from(new Map(suggestedRelativeReminders.map(item => [`${item.value}-${item.unit}`, item])).values());
