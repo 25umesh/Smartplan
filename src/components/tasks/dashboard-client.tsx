@@ -13,6 +13,7 @@ import { format, formatDistanceToNow } from 'date-fns';
 import { deleteTask, toggleTaskCompletion } from '@/lib/actions';
 import { Trash2, Calendar, Circle, CheckCircle2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 interface DashboardClientProps {
   initialTasks: Task[];
