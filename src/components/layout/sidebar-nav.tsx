@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BrainCircuit, Calendar, LayoutDashboard, Sparkles } from 'lucide-react';
+import { BrainCircuit, Calendar, LayoutDashboard, Sparkles, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   SidebarContent,
@@ -64,13 +64,8 @@ export function SidebarNav() {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarContent>
-      <SidebarFooter className="flex items-center justify-between p-2 group-data-[collapsible=icon]:justify-center">
-        <div className="group-data-[collapsible=icon]:hidden">
-          <ThemeToggle/>
-        </div>
-        <SidebarMenuButton tooltip="Settings" className='justify-center size-8'>
-          <ThemeToggle />
-        </SidebarMenuButton>
+      <SidebarFooter className="flex items-center justify-end p-2 group-data-[collapsible=icon]:justify-center">
+        <ThemeToggle />
       </SidebarFooter>
     </>
   );
