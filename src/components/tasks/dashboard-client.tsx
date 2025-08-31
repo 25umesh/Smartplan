@@ -9,7 +9,7 @@ import { Button } from '../ui/button';
 import { Checkbox } from '../ui/checkbox';
 import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
-import { format, formatDistanceToNow, parseISO } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { deleteTask, toggleTaskCompletion } from '@/lib/actions';
 import { Trash2, Calendar, Circle, CheckCircle2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -103,6 +103,12 @@ export function DashboardClient({ initialTasks }: DashboardClientProps) {
 }
 
 function TaskItem({ task, onToggle, onDelete }: { task: Task, onToggle: (id: string) => void, onDelete: (id: string) => void }) {
+  // To fix hydration errors, we parse the ISO string which may or may not have a Z (timezone)
+  // and then format it. By not providing a timezone to format, it will use the default for the environment
+  // (UTC on server, browser locale on client).
+  // new Date() is the key to fixing this.
+  const displayDate = task.dueDate ? new Date(task.dueDate) : null;
+
   return (
     <Card className={cn('transition-all', task.completed && 'bg-muted/50')}>
       <CardContent className="p-4 flex items-center gap-4">
@@ -114,10 +120,10 @@ function TaskItem({ task, onToggle, onDelete }: { task: Task, onToggle: (id: str
         <div className="flex-1 grid gap-1">
           <p className={cn("font-medium", task.completed && "line-through text-muted-foreground")}>{task.title}</p>
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
-            {task.dueDate && (
+            {displayDate && (
               <div className="flex items-center gap-1">
                 <Calendar className="h-4 w-4" />
-                <span>{format(parseISO(task.dueDate), 'MMM d')}</span>
+                <span>{format(displayDate, 'MMM d')}</span>
               </div>
             )}
             {task.priority && (
