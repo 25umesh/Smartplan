@@ -52,14 +52,16 @@ const prompt = ai.definePrompt({
   output: {schema: SuggestOptimalReminderTimesOutputSchema},
   prompt: `You are a personal assistant AI that suggests optimal reminder times for tasks.
 
-  Given the following task description and deadline (if any), suggest exactly 6 reminder times in ISO format.
+Given the following task description and deadline, suggest exactly 6 reminder times in ISO format.
 
-  Explain your reasoning for suggesting these times, considering the task description and deadline.
+Your suggestions should be logically spaced and work backwards from the deadline. For example, if a task is due in a week, you might suggest reminders for 1 day before, 3 hours before, and 1 hour before. Consider the nature of the task from its description.
 
-  Task description: {{{taskDescription}}}
-  Deadline: {{{deadline}}}
+Task description: {{{taskDescription}}}
+Deadline: {{{deadline}}}
 
-  Format your response as a JSON object with "suggestedReminderTimes" (an array of 6 ISO format datetimes) and "reasoning" fields.
+Explain your reasoning for suggesting these specific times, considering the task description and the deadline.
+
+Format your response as a JSON object with "suggestedReminderTimes" (an array of 6 ISO format datetimes) and "reasoning" fields.
 `,
 });
 
