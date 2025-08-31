@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Bell, CalendarIcon, Loader2, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format, addMinutes, isBefore } from 'date-fns';
+import { format, addMinutes, isBefore, parseISO } from 'date-fns';
 import { suggestRemindersAction, addReminders } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import type { Task } from '@/lib/types';
@@ -121,7 +121,7 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
   const fiveMinutesFromNow = useMemo(() => addMinutes(new Date(), 5), []);
 
   const validSuggestedTimes = useMemo(() => {
-      return suggestedTimes.filter(time => !isBefore(new Date(time), fiveMinutesFromNow));
+      return suggestedTimes.filter(time => !isBefore(parseISO(time), fiveMinutesFromNow));
   }, [suggestedTimes, fiveMinutesFromNow]);
   
   const isCustomTimeValid = useMemo(() => customTime && !isBefore(customTime, fiveMinutesFromNow), [customTime, fiveMinutesFromNow]);
@@ -135,7 +135,7 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
             <Bell className="h-6 w-6" /> Set Reminders for &quot;{task.title}&quot;
           </DialogTitle>
           <DialogDescription>
-            AI suggestions are for times in the future. You can select up to 6. Reminders cannot be set within 5 minutes of the current time.
+            AI suggestions are for times in the future. You can select multiple. Reminders cannot be set within 5 minutes of the current time.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto pr-2">
@@ -169,7 +169,7 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
                         checked={selectedTimes.includes(time)}
                         onCheckedChange={(checked) => handleCheckboxChange(time, !!checked)}
                     />
-                    <Label htmlFor={time} className="cursor-pointer">{format(new Date(time), 'PPP p')}</Label>
+                    <Label htmlFor={time} className="cursor-pointer">{format(parseISO(time), 'PPP p')}</Label>
                   </div>
                 ))}
               </div>
@@ -197,7 +197,7 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
                     selected={customTime}
                     onSelect={setCustomTime}
                     initialFocus
-                    disabled={(date) => isBefore(date, new Date())}
+                    disabled={(date) => isBefore(date, new Date(new Date().setHours(0,0,0,0)))}
                     />
                     <div className="p-3 border-t border-border">
                         <Input type="time" onChange={e => {
