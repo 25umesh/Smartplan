@@ -11,7 +11,7 @@ import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { format, parseISO } from 'date-fns';
 import { deleteTask, toggleTaskCompletion } from '@/lib/actions';
-import { Trash2, Calendar, Circle, CheckCircle2 } from 'lucide-react';
+import { Trash2, Calendar } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -103,11 +103,9 @@ export function DashboardClient({ initialTasks }: DashboardClientProps) {
 }
 
 function TaskItem({ task, onToggle, onDelete }: { task: Task, onToggle: (id: string) => void, onDelete: (id: string) => void }) {
-  // To fix hydration errors, we parse the ISO string which may or may not have a Z (timezone)
-  // and then format it. By not providing a timezone to format, it will use the default for the environment
-  // (UTC on server, browser locale on client).
-  // new Date() is the key to fixing this.
-  const displayDate = task.dueDate ? new Date(task.dueDate) : null;
+  // Fix hydration mismatch by parsing the ISO string, which treats it as UTC,
+  // then formatting it. The server and client will now both render the same date.
+  const displayDate = task.dueDate ? parseISO(task.dueDate) : null;
 
   return (
     <Card className={cn('transition-all', task.completed && 'bg-muted/50')}>
