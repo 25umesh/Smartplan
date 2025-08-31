@@ -187,10 +187,16 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
                 <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <Label>Reminders</Label>
-                      <Button variant="outline" size="sm" onClick={handleSuggestReminders} disabled={isSuggesting || reminders.length >= 6}>
-                          {isSuggesting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Sparkles className="mr-2 h-4 w-4"/>}
-                          Suggest
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={addReminder} disabled={reminders.length >= 6}>
+                            <PlusCircle className="mr-2 h-4 w-4"/>
+                            Add Reminder
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={handleSuggestReminders} disabled={isSuggesting || reminders.length >= 6}>
+                            {isSuggesting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Sparkles className="mr-2 h-4 w-4"/>}
+                            Suggest
+                        </Button>
+                      </div>
                     </div>
                     {reminders.map((reminder) => (
                         <div key={reminder.id} className="flex items-center gap-2 p-2 border rounded-lg">
@@ -220,10 +226,6 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
                            </Button>
                         </div>
                     ))}
-                    <Button variant="outline" size="sm" onClick={addReminder} disabled={reminders.length >= 6}>
-                        <PlusCircle className="mr-2 h-4 w-4"/>
-                        Add Reminder
-                    </Button>
                 </div>
             </div>
           )}
