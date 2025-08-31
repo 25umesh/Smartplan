@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, type ReactNode, useEffect, useMemo } from 'react';
@@ -206,7 +205,7 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
                             const [hours, minutes] = e.target.value.split(':').map(Number);
                             setCustomTime(prev => {
                                 const newDate = prev ? new Date(prev) : new Date();
-                                newDate.setHours(hours, minutes);
+                                newDate.setHours(hours, minutes, 0, 0); // Also reset seconds and ms
                                 return newDate;
                             });
                         }}/>
