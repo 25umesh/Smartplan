@@ -116,7 +116,7 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
     setIsDetecting(false);
   };
   
-  const handleFetchSuggestions = async (taskTitle: string, taskDescription?: string, taskDueDate?: Date, taskPriority?: Task['priority']) => {
+  const handleFetchSuggestions = async (taskTitle: string, taskDescription?: string, taskDueDate?: Date) => {
     setIsLoadingSuggestions(true);
     setSuggestedTimes([]);
     setReasoning('');
@@ -124,7 +124,6 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
         const result = await suggestRemindersAction({
             taskDescription: taskTitle + (taskDescription ? `\n${taskDescription}` : ''),
             deadline: taskDueDate?.toISOString() || undefined,
-            priority: taskPriority || undefined,
         });
         if (result.error) {
             toast({ title: 'Failed to get suggestions', description: result.error, variant: 'destructive' });
@@ -152,7 +151,7 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
         newDueDate.setHours(hours, minutes);
         finalDueDate = newDueDate;
     }
-    handleFetchSuggestions(title, description, finalDueDate, priority);
+    handleFetchSuggestions(title, description, finalDueDate);
   }
 
   const handleSave = async () => {

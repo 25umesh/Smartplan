@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, type ReactNode, useEffect, useMemo } from 'react';
@@ -49,7 +50,6 @@ export function ReminderDialog({ task, children }: ReminderDialogProps) {
         const result = await suggestRemindersAction({
             taskDescription: task.title + (task.description ? `\n${task.description}` : ''),
             deadline: task.dueDate || undefined,
-            priority: task.priority || undefined,
         });
         if (result.error) {
             toast({

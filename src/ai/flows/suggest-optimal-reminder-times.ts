@@ -19,10 +19,6 @@ const SuggestOptimalReminderTimesInputSchema = z.object({
     .string()
     .optional()
     .describe('The deadline for the task, if any, in ISO format.'),
-  priority: z
-    .enum(['low', 'medium', 'high'])
-    .optional()
-    .describe('The priority of the task.'),
 });
 export type SuggestOptimalReminderTimesInput = z.infer<
   typeof SuggestOptimalReminderTimesInputSchema
@@ -32,7 +28,7 @@ const SuggestOptimalReminderTimesOutputSchema = z.object({
   suggestedReminderTimes: z
     .array(z.string())
     .describe(
-      'An array of suggested reminder times in ISO format, ordered from earliest to latest.'
+      'An array of 6 suggested reminder times in ISO format, ordered from earliest to latest.'
     ),
   reasoning: z
     .string()
@@ -56,19 +52,14 @@ const prompt = ai.definePrompt({
   output: {schema: SuggestOptimalReminderTimesOutputSchema},
   prompt: `You are a personal assistant AI that suggests optimal reminder times for tasks.
 
-  Given the following task description, deadline (if any), and priority, suggest an appropriate number of reminder times in ISO format.
-  - If priority is "high", suggest exactly 12 reminder times.
-  - If priority is "medium", suggest exactly 6 reminder times.
-  - If priority is "low", suggest exactly 3 reminder times.
-  - If priority is not provided, suggest 6 reminder times as a default.
+  Given the following task description and deadline (if any), suggest exactly 6 reminder times in ISO format.
 
-  Explain your reasoning for suggesting these times, considering the task description, deadline, and priority.
+  Explain your reasoning for suggesting these times, considering the task description and deadline.
 
   Task description: {{{taskDescription}}}
   Deadline: {{{deadline}}}
-  Priority: {{{priority}}}
 
-  Format your response as a JSON object with "suggestedReminderTimes" (an array of ISO format datetimes) and "reasoning" fields.
+  Format your response as a JSON object with "suggestedReminderTimes" (an array of 6 ISO format datetimes) and "reasoning" fields.
 `,
 });
 
