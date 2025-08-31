@@ -126,13 +126,16 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
   const getFinalDueDate = () => {
     if (!dueDate) return undefined;
 
-    let finalDueDate = set(dueDate, { hours: 0, minutes: 0, seconds: 0, milliseconds: 0 });
+    let finalDueDate = dueDate; // Start with the selected date object
 
     if (includeTime) {
         const [hours, minutes] = time.split(':').map(Number);
-        // Create a new Date object from a string to avoid timezone issues.
+        // Construct a new Date object from a string that specifies the exact local time.
         const dateString = `${format(finalDueDate, 'yyyy-MM-dd')}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
         finalDueDate = new Date(dateString);
+    } else {
+        // If no time is included, just use the date part (time will be midnight local)
+        finalDueDate = new Date(format(finalDueDate, 'yyyy-MM-dd'));
     }
     
     return finalDueDate;
