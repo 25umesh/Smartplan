@@ -9,7 +9,7 @@ import { Button } from '../ui/button';
 import { Checkbox } from '../ui/checkbox';
 import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
-import { format, formatDistanceToNow } from 'date-fns';
+import { format, formatDistanceToNow, parseISO } from 'date-fns';
 import { deleteTask, toggleTaskCompletion } from '@/lib/actions';
 import { Trash2, Calendar, Circle, CheckCircle2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -117,7 +117,7 @@ function TaskItem({ task, onToggle, onDelete }: { task: Task, onToggle: (id: str
             {task.dueDate && (
               <div className="flex items-center gap-1">
                 <Calendar className="h-4 w-4" />
-                <span>{format(new Date(task.dueDate), 'MMM d')}</span>
+                <span>{format(parseISO(task.dueDate), 'MMM d')}</span>
               </div>
             )}
             {task.priority && (
