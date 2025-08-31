@@ -16,22 +16,36 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Bell, CalendarIcon, Loader2, Sparkles } from "lucide-react";
+import { Bell, CalendarIcon, Loader2, PlusCircle, Sparkles, Trash2 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
-import { format, addMinutes, isBefore, parseISO } from "date-fns";
-import { detectDetailsAction, addTask, suggestRemindersAction } from "@/lib/actions";
+import { format, addMinutes, isBefore, sub, parseISO } from "date-fns";
+import { detectDetailsAction, addTask } from "@/lib/actions";
 import { useToast } from "@/hooks/use-toast";
 import type { Reminder } from "@/lib/types";
 import { Alert, AlertDescription } from "../ui/alert";
 import { Switch } from "../ui/switch";
-import { Checkbox } from "../ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 interface SmartTaskDialogProps {
   children: ReactNode;
 }
 
 type Step = 'details' | 'reminders';
+type ReminderUnit = 'minutes' | 'hours' | 'days';
+
+interface RelativeReminder {
+  id: string;
+  value: number;
+  unit: ReminderUnit;
+}
+
 
 export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -47,10 +61,7 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
   const [time, setTime] = useState("09:00");
   
   // --- Step 2: Reminders State ---
-  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
-  const [suggestedTimes, setSuggestedTimes] = useState<string[]>([]);
-  const [reasoning, setReasoning] = useState('');
-  const [selectedTimes, setSelectedTimes] = useState<string[]>([]);
+  const [reminders, setReminders] = useState<RelativeReminder[]>([]);
   const [message, setMessage] = useState('Your friendly reminder!');
 
   // --- Common State ---
@@ -68,10 +79,7 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
     setIncludeTime(false);
     setTime("09:00");
     // Reminders
-    setIsLoadingSuggestions(false);
-    setSuggestedTimes([]);
-    setReasoning('');
-    setSelectedTimes([]);
+    setReminders([]);
     setMessage('Your friendly reminder!');
     // Common
     setIsSaving(false);
@@ -130,28 +138,6 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
   }, [dueDate, includeTime, time]);
 
 
-  const handleFetchSuggestions = async (taskTitle: string, taskDescription?: string, taskDueDate?: Date) => {
-    setIsLoadingSuggestions(true);
-    setSuggestedTimes([]);
-    setReasoning('');
-    try {
-        const result = await suggestRemindersAction({
-            taskDescription: taskTitle + (taskDescription ? `\n${taskDescription}` : ''),
-            deadline: taskDueDate?.toISOString() || undefined,
-        });
-        if (result.error) {
-            toast({ title: 'Failed to get suggestions', description: result.error, variant: 'destructive' });
-        } else if (result.data) {
-            setSuggestedTimes(result.data.suggestedReminderTimes);
-            setReasoning(result.data.reasoning);
-        }
-    } catch(e) {
-        toast({ title: 'An error occurred', description: 'Could not fetch suggestions.', variant: 'destructive' });
-    } finally {
-        setIsLoadingSuggestions(false);
-    }
-  };
-
   const handleNext = () => {
     if (!title) {
         toast({ title: "Title is required", variant: "destructive" });
@@ -162,8 +148,6 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
         return;
     }
     setStep('reminders');
-    const finalDueDate = getFinalDueDate();
-    handleFetchSuggestions(title, description, finalDueDate);
   }
 
   const handleSave = async () => {
@@ -177,11 +161,25 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
     }
 
     setIsSaving(true);
-
     const finalDueDate = getFinalDueDate();
-    
-    let remindersToSet: Omit<Reminder, 'id' | 'sent'>[] = selectedTimes.map(time => ({ remindAt: time, message }));
 
+    let remindersToSet: Omit<Reminder, 'id' | 'sent'>[] = [];
+    if(finalDueDate) {
+      const fiveMinutesFromNow = addMinutes(new Date(), 5);
+      const calculatedReminders = reminders.map(r => {
+        const remindAt = sub(finalDueDate, { [r.unit]: r.value });
+        return { remindAt, message };
+      });
+
+      const invalidReminders = calculatedReminders.filter(r => isBefore(r.remindAt, fiveMinutesFromNow));
+      if (invalidReminders.length > 0) {
+        toast({ title: 'Some reminders are set for the past or within 5 minutes.', description: 'Please adjust your reminders to be at least 5 minutes in the future.', variant: 'destructive' });
+        setIsSaving(false);
+        return;
+      }
+      remindersToSet = calculatedReminders.map(r => ({...r, remindAt: r.remindAt.toISOString()}));
+    }
+    
     try {
         await addTask({
             title,
@@ -197,22 +195,22 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
     setIsSaving(false);
   }
 
-  const handleCheckboxChange = (time: string, checked: boolean) => {
-    setSelectedTimes(prev => {
-        const newSelectedTimes = checked ? [...prev, time] : prev.filter(t => t !== time);
-        if (newSelectedTimes.length > 6) {
-            toast({ title: 'You can select up to 6 reminders.', variant: 'destructive' });
-            return prev;
-        }
-        return newSelectedTimes;
-    });
-  }
+  // Reminder step functions
+  const addReminder = () => {
+    if (reminders.length >= 6) {
+      toast({ title: 'You can add up to 6 reminders.', variant: 'destructive' });
+      return;
+    }
+    setReminders([...reminders, { id: crypto.randomUUID(), value: 10, unit: 'minutes' }]);
+  };
 
-  const fiveMinutesFromNow = useMemo(() => addMinutes(new Date(), 5), []);
+  const removeReminder = (id: string) => {
+    setReminders(reminders.filter(r => r.id !== id));
+  };
 
-  const validSuggestedTimes = useMemo(() => {
-    return suggestedTimes.filter(time => !isBefore(parseISO(time), fiveMinutesFromNow));
-  }, [suggestedTimes, fiveMinutesFromNow]);
+  const updateReminder = (id: string, value: Partial<RelativeReminder>) => {
+    setReminders(reminders.map(r => (r.id === id ? { ...r, ...value } : r)));
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -227,7 +225,7 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
            )}
            {step === 'reminders' && (
               <DialogDescription>
-                Optionally, add reminders for your new task &quot;{title}&quot;. You can select up to 6.
+                Optionally, add reminders for your new task &quot;{title}&quot;. You can add up to 6.
               </DialogDescription>
            )}
         </DialogHeader>
@@ -327,6 +325,13 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
 
         {step === 'reminders' && (
             <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto pr-2">
+                {!getFinalDueDate() && (
+                    <Alert variant="destructive">
+                        <AlertDescription>
+                            Please go back and set a due date to add reminders.
+                        </AlertDescription>
+                    </Alert>
+                )}
                  {!notificationEmail && (
                     <Alert variant="destructive">
                         <AlertDescription>
@@ -335,41 +340,49 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
                     </Alert>
                 )}
 
-                {isLoadingSuggestions && (
-                    <div className="flex items-center justify-center p-8">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                    </div>
-                )}
-
-                {!isLoadingSuggestions && validSuggestedTimes.length > 0 && (
+                {getFinalDueDate() && (
                     <div className="space-y-4">
-                      <Alert>
-                          <Sparkles className="h-4 w-4" />
-                        <AlertDescription className="text-sm text-muted-foreground">
-                          {reasoning}
-                        </AlertDescription>
-                      </Alert>
-                      <div className="space-y-2">
-                        <Label>AI Suggested Times</Label>
-                        {validSuggestedTimes.map((time) => (
-                          <div key={time} className="flex items-center space-x-2">
-                            <Checkbox 
-                                id={time} 
-                                checked={selectedTimes.includes(time)}
-                                onCheckedChange={(checked) => handleCheckboxChange(time, !!checked)}
-                                disabled={selectedTimes.length >= 6 && !selectedTimes.includes(time)}
-                            />
-                            <Label htmlFor={time} className="cursor-pointer">{format(parseISO(time), 'PPP p')}</Label>
-                          </div>
-                        ))}
-                      </div>
+                        <div className="grid gap-1.5">
+                            <Label htmlFor="message">Reminder Message</Label>
+                            <Input id="message" value={message} onChange={e => setMessage(e.target.value)} />
+                        </div>
+                        <div className="space-y-3">
+                            <Label>Reminders</Label>
+                            {reminders.map((reminder) => (
+                                <div key={reminder.id} className="flex items-center gap-2 p-2 border rounded-lg">
+                                   <Input
+                                        type="number"
+                                        value={reminder.value}
+                                        onChange={e => updateReminder(reminder.id, { value: parseInt(e.target.value, 10) || 0 })}
+                                        className="w-20"
+                                        min="1"
+                                   />
+                                   <Select
+                                        value={reminder.unit}
+                                        onValueChange={(value: ReminderUnit) => updateReminder(reminder.id, { unit: value })}
+                                   >
+                                       <SelectTrigger className="w-[120px]">
+                                           <SelectValue placeholder="Unit" />
+                                       </SelectTrigger>
+                                       <SelectContent>
+                                           <SelectItem value="minutes">Minutes</SelectItem>
+                                           <SelectItem value="hours">Hours</SelectItem>
+                                           <SelectItem value="days">Days</SelectItem>
+                                       </SelectContent>
+                                   </Select>
+                                   <span className="flex-1 text-sm text-muted-foreground">before due</span>
+                                   <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive h-8 w-8" onClick={() => removeReminder(reminder.id)}>
+                                       <Trash2 className="h-4 w-4"/>
+                                   </Button>
+                                </div>
+                            ))}
+                            <Button variant="outline" size="sm" onClick={addReminder} disabled={reminders.length >= 6}>
+                                <PlusCircle className="mr-2 h-4 w-4"/>
+                                Add Reminder
+                            </Button>
+                        </div>
                     </div>
                 )}
-                
-                <div className="grid gap-1.5">
-                    <Label htmlFor="message">Reminder Message</Label>
-                    <Input id="message" value={message} onChange={e => setMessage(e.target.value)} />
-                </div>
             </div>
         )}
 
@@ -385,7 +398,7 @@ export function SmartTaskDialog({ children }: SmartTaskDialogProps) {
           {step === 'reminders' && (
             <>
               <Button variant="outline" onClick={() => setStep('details')}>Back</Button>
-              <Button onClick={handleSave} disabled={isSaving || isLoadingSuggestions || !notificationEmail}>
+              <Button onClick={handleSave} disabled={isSaving || !notificationEmail || (reminders.length > 0 && !getFinalDueDate())}>
                 {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Save Task
               </Button>
