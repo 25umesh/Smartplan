@@ -1,0 +1,13 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/action_add"
+        android:icon="@android:drawable/ic_input_add"
+        android:title="Add Task"
+        app:showAsAction="ifRoom" />
+    <item
+        android:id="@+id/action_calendar"
+        android:icon="@android:drawable/ic_menu_my_calendar"
+        android:title="Calendar"
+        app:showAsAction="ifRoom" />
+</menu>
